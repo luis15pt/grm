@@ -398,77 +398,6 @@ body {
     opacity: 0;
 }
 
-/* Individual machine cards */
-.machine-card {
-    background: white;
-    border: 1px solid #dee2e6;
-    border-radius: 12px;
-    padding: 16px;
-    cursor: move;
-    transition: all 0.3s ease;
-    position: relative;
-    user-select: none;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    min-height: 120px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-}
-
-
-.machine-card:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    transform: translateY(-2px);
-}
-
-.machine-card.selected {
-    border-color: #0d6efd;
-    background-color: #e7f3ff;
-    box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25);
-}
-
-.machine-card.dragging {
-    opacity: 0.5;
-    transform: rotate(5deg);
-}
-
-.machine-card.has-vms {
-    border-left: 4px solid #dc3545;
-}
-
-.machine-card.pending-operation {
-    border: 2px solid #ffc107;
-    background: linear-gradient(45deg, #ffffff 25%, #fff3cd 25%, #fff3cd 50%, #ffffff 50%, #ffffff 75%, #fff3cd 75%, #fff3cd);
-    background-size: 8px 8px;
-    animation: pendingStripes 1s linear infinite;
-}
-
-@keyframes pendingStripes {
-    0% { background-position: 0 0; }
-    100% { background-position: 8px 8px; }
-}
-
-.machine-card.pending-operation::after {
-    content: "QUEUED";
-    position: absolute;
-    top: 50%;
-    right: 4px;
-    transform: translateY(-50%);
-    background: #ffc107;
-    color: #000;
-    font-size: 0.6em;
-    font-weight: bold;
-    padding: 2px 6px;
-    border-radius: 8px;
-    z-index: 15;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-}
-
-.machine-card.has-vms .machine-name {
-    color: #dc3545;
-    font-weight: bold;
-}
-
 /* Machine card components */
 .machine-card-header {
     display: flex;
@@ -713,15 +642,6 @@ body {
     z-index: 1;
 }
 
-.machine-card:hover .drag-handle {
-    color: #0d6efd;
-}
-
-/* Animation for cards */
-.machine-card {
-    animation: fadeIn 0.3s ease-in;
-}
-
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
@@ -800,13 +720,7 @@ body {
     .subgroup-title {
         font-size: 0.8rem;
     }
-    
-    .machine-card {
-        min-height: 100px;
-        padding: 12px;
-    }
-    
-    
+
     .container-fluid {
         padding: 10px;
     }
