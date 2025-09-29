@@ -763,34 +763,67 @@ function toggleGroup(groupId) {
 
 // Basic loading/notification functions for modular compatibility
 function showLoading(show, message = 'Loading...', step = 'Initializing...', progress = 0) {
+    console.log(`🔧 showLoading called: show=${show}, message=${message}, step=${step}`);
+
     const loadingIndicator = document.getElementById('loadingIndicator');
     const mainContent = document.getElementById('mainContent');
+    const loadingMessage = document.getElementById('loadingMessage');
+
+    console.log(`🔧 Elements found: loadingIndicator=${!!loadingIndicator}, mainContent=${!!mainContent}, loadingMessage=${!!loadingMessage}`);
 
     if (show) {
-        loadingIndicator.classList.remove('d-none');
+        if (loadingIndicator) {
+            loadingIndicator.classList.remove('d-none');
+            console.log(`🔧 Showed loading indicator`);
+        } else {
+            console.error('❌ loadingIndicator element not found');
+        }
+
         // ALWAYS keep main content visible so contract column stays visible
         // Don't hide main content during loading - just show loading indicator
-        mainContent.classList.remove('d-none');
+        if (mainContent) {
+            mainContent.classList.remove('d-none');
+        }
 
         // Update loading message and progress
         updateLoadingProgress(step, progress);
-        document.getElementById('loadingMessage').textContent = message;
+        if (loadingMessage) {
+            loadingMessage.textContent = message;
+            console.log(`🔧 Updated loading message to: ${message}`);
+        } else {
+            console.error('❌ loadingMessage element not found');
+        }
     } else {
-        loadingIndicator.classList.add('d-none');
-        mainContent.classList.remove('d-none');
+        if (loadingIndicator) {
+            loadingIndicator.classList.add('d-none');
+            console.log(`🔧 Hidden loading indicator`);
+        }
+        if (mainContent) {
+            mainContent.classList.remove('d-none');
+        }
     }
 }
 
 function updateLoadingProgress(step, progress) {
+    console.log(`🔧 updateLoadingProgress called: step=${step}, progress=${progress}`);
+
     const stepElement = document.getElementById('loadingStep');
     const progressElement = document.getElementById('loadingProgress');
 
+    console.log(`🔧 Progress elements found: loadingStep=${!!stepElement}, loadingProgress=${!!progressElement}`);
+
     if (stepElement && step) {
         stepElement.textContent = step;
+        console.log(`🔧 Updated step to: ${step}`);
+    } else if (!stepElement) {
+        console.error('❌ loadingStep element not found');
     }
 
     if (progressElement && progress !== undefined) {
         progressElement.style.width = `${progress}%`;
+        console.log(`🔧 Updated progress to: ${progress}%`);
+    } else if (!progressElement) {
+        console.error('❌ loadingProgress element not found');
     }
 }
 
