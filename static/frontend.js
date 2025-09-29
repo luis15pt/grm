@@ -765,12 +765,16 @@ function toggleGroup(groupId) {
 function showLoading(show, message = 'Loading...', step = 'Initializing...', progress = 0) {
     const loadingIndicator = document.getElementById('loadingIndicator');
     const mainContent = document.getElementById('mainContent');
-    
+
     if (show) {
         loadingIndicator.classList.remove('d-none');
         // ALWAYS keep main content visible so contract column stays visible
         // Don't hide main content during loading - just show loading indicator
         mainContent.classList.remove('d-none');
+
+        // Update loading message and progress
+        updateLoadingProgress(step, progress);
+        document.getElementById('loadingMessage').textContent = message;
     } else {
         loadingIndicator.classList.add('d-none');
         mainContent.classList.remove('d-none');
@@ -778,7 +782,16 @@ function showLoading(show, message = 'Loading...', step = 'Initializing...', pro
 }
 
 function updateLoadingProgress(step, progress) {
-    // Basic implementation
+    const stepElement = document.getElementById('loadingStep');
+    const progressElement = document.getElementById('loadingProgress');
+
+    if (stepElement && step) {
+        stepElement.textContent = step;
+    }
+
+    if (progressElement && progress !== undefined) {
+        progressElement.style.width = `${progress}%`;
+    }
 }
 
 function showMainContent() {
