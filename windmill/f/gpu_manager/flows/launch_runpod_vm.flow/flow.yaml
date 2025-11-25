@@ -1,0 +1,256 @@
+summary: "Launch VM on RunPod via Hyperstack"
+description: "Complete workflow to deploy a VM on RunPod/Hyperstack platform with firewall and verification"
+value:
+  modules:
+    # Step 1: Get GPU type from hostname to determine flavor and firewall
+    - id: a
+      summary: "Determine GPU configuration"
+      value:
+        type: script
+        content: |
+          import re
+
+          def main(hostname: str) -> dict:
+              """Extract GPU type and count from hostname"""
+              # Extract GPU type (H100, A100, L40, etc.)
+              hostname_lower = hostname.lower()
+
+              gpu_type = None
+              if 'h100' in hostname_lower:
+                  gpu_type = 'H100'
+              elif 'a100' in hostname_lower:
+                  gpu_type = 'A100'
+              elif 'l40' in hostname_lower:
+                  gpu_type = 'L40'
+              elif 'rtx' in hostname_lower or 'a6000' in hostname_lower:
+                  gpu_type = 'RTX-A6000'
+
+              # Extract GPU count (default to 8)
+              match = re.search(r'(\d+)x', hostname_lower)
+              gpu_count = int(match.group(1)) if match else 8
+
+              # Build flavor name
+              flavor = f"n3-{gpu_type}x{gpu_count}" if gpu_type else f"n3-H100x{gpu_count}"
+
+              return {
+                  "gpu_type": gpu_type or "H100",
+                  "gpu_count": gpu_count,
+                  "flavor": flavor,
+                  "hostname": hostname
+              }
+        input_transforms:
+          hostname:
+            type: javascript
+            expr: "flow_input.hostname"
+        language: python3
+
+    # Step 2: Deploy VM on Hyperstack
+    - id: b
+      summary: "Deploy VM"
+      value:
+        type: script
+        path: f/gpu_manager/scripts/hyperstack/deploy_vm
+        input_transforms:
+          hyperstack_api:
+            type: javascript
+            expr: "flow_input.hyperstack_api"
+          hostname:
+            type: javascript
+            expr: "flow_input.hostname"
+          flavor_id:
+            type: javascript
+            expr: "results.a.flavor"
+          image_id:
+            type: javascript
+            expr: "flow_input.image_id"
+          network_id:
+            type: javascript
+            expr: "flow_input.network_id"
+          assign_floating_ip:
+            type: javascript
+            expr: "flow_input.assign_floating_ip !== false"
+        retry:
+          constant:
+            attempts: 3
+            seconds: 10
+
+    # Step 3: Wait for VM to become active
+    - id: c
+      summary: "Wait for VM active"
+      value:
+        type: script
+        content: |
+          import time
+          import wmill
+
+          def main(hyperstack_api: dict, vm_id: str, max_wait_seconds: int = 300) -> dict:
+              """Poll VM status until active or timeout"""
+              start_time = time.time()
+
+              while True:
+                  status_result = wmill.run_script_sync(
+                      path="f/gpu_manager/scripts/hyperstack/get_vm_status",
+                      args={
+                          "hyperstack_api": hyperstack_api,
+                          "vm_id": vm_id
+                      }
+                  )
+
+                  status = status_result.get('status', '').upper()
+
+                  if status == 'ACTIVE':
+                      return {
+                          "success": True,
+                          "status": status,
+                          "vm_data": status_result,
+                          "wait_time": time.time() - start_time
+                      }
+                  elif status == 'ERROR':
+                      raise Exception(f"VM entered ERROR state: {status_result}")
+
+                  # Check timeout
+                  if time.time() - start_time > max_wait_seconds:
+                      raise Exception(f"Timeout waiting for VM (current status: {status})")
+
+                  # Wait before next check
+                  time.sleep(10)
+        input_transforms:
+          hyperstack_api:
+            type: javascript
+            expr: "flow_input.hyperstack_api"
+          vm_id:
+            type: javascript
+            expr: "results.b.vm_id"
+          max_wait_seconds:
+            type: javascript
+            expr: "flow_input.max_wait_seconds || 300"
+        language: python3
+
+    # Step 4: Attach firewall rules
+    - id: d
+      summary: "Attach firewall"
+      value:
+        type: script
+        path: f/gpu_manager/scripts/hyperstack/attach_firewall
+        input_transforms:
+          hyperstack_api:
+            type: javascript
+            expr: "flow_input.hyperstack_api"
+          vm_id:
+            type: javascript
+            expr: "results.b.vm_id"
+          gpu_type:
+            type: javascript
+            expr: "results.a.gpu_type"
+          firewall_id:
+            type: javascript
+            expr: "flow_input.firewall_id"
+        retry:
+          constant:
+            attempts: 3
+            seconds: 5
+
+    # Step 5: Final verification
+    - id: e
+      summary: "Verify deployment"
+      value:
+        type: script
+        path: f/gpu_manager/scripts/hyperstack/get_vm_status
+        input_transforms:
+          hyperstack_api:
+            type: javascript
+            expr: "flow_input.hyperstack_api"
+          vm_id:
+            type: javascript
+            expr: "results.b.vm_id"
+
+    # Step 6: Return success result
+    - id: f
+      summary: "Deployment complete"
+      value:
+        type: script
+        content: |
+          def main(hostname: str, deploy_result: dict, vm_status: dict, firewall_result: dict) -> dict:
+              return {
+                  "success": True,
+                  "message": f"Successfully deployed {hostname} on RunPod",
+                  "hostname": hostname,
+                  "vm_id": deploy_result.get('vm_id'),
+                  "ip_address": vm_status.get('ip_address'),
+                  "status": vm_status.get('status'),
+                  "flavor": deploy_result.get('flavor'),
+                  "firewall_id": firewall_result.get('firewall_id'),
+                  "deployment": deploy_result,
+                  "final_status": vm_status
+              }
+        input_transforms:
+          hostname:
+            type: javascript
+            expr: "flow_input.hostname"
+          deploy_result:
+            type: javascript
+            expr: "results.b"
+          vm_status:
+            type: javascript
+            expr: "results.e"
+          firewall_result:
+            type: javascript
+            expr: "results.d"
+        language: python3
+
+  failure_module:
+    summary: "Handle deployment failure"
+    value:
+      type: script
+      content: |
+        def main(error: dict, flow_input: dict, results: dict):
+            return {
+                "success": False,
+                "message": f"RunPod deployment failed: {error.get('message', 'Unknown error')}",
+                "hostname": flow_input.get("hostname"),
+                "error": error,
+                "partial_results": results
+            }
+      input_transforms:
+        error:
+          type: javascript
+          expr: "previous_result"
+        flow_input:
+          type: javascript
+          expr: "flow_input"
+        results:
+          type: javascript
+          expr: "results"
+      language: python3
+
+schema:
+  $schema: "https://json-schema.org/draft/2020-12/schema"
+  type: object
+  properties:
+    hyperstack_api:
+      type: object
+      description: "Hyperstack API credentials resource"
+      format: resource-hyperstack_api
+    hostname:
+      type: string
+      description: "Hostname for the new VM (e.g., 'runpod-h100-001')"
+    image_id:
+      type: string
+      description: "Image ID (optional, uses default from resource)"
+    network_id:
+      type: string
+      description: "Network ID (optional, uses default from resource)"
+    firewall_id:
+      type: string
+      description: "Explicit firewall ID (optional, looked up by GPU type)"
+    assign_floating_ip:
+      type: boolean
+      default: true
+      description: "Assign floating IP to VM"
+    max_wait_seconds:
+      type: integer
+      default: 300
+      description: "Max seconds to wait for VM to become active"
+  required:
+    - hyperstack_api
+    - hostname

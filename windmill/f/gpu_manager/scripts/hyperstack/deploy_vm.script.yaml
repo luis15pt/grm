@@ -1,0 +1,32 @@
+summary: "Deploy VM on Hyperstack"
+description: "Creates a new virtual machine on the Hyperstack/RunPod platform"
+kind: script
+language: python3
+schema:
+  $schema: "https://json-schema.org/draft/2020-12/schema"
+  type: object
+  properties:
+    hyperstack_api:
+      type: object
+      description: "Hyperstack API credentials"
+      format: resource-hyperstack_api
+    hostname:
+      type: string
+      description: "Name for the new VM"
+    flavor_id:
+      type: string
+      description: "Flavor/instance type (e.g., 'n3-H100x8')"
+    image_id:
+      type: string
+      description: "Image ID (optional, uses default from resource)"
+    network_id:
+      type: string
+      description: "Network ID (optional, uses default from resource)"
+    assign_floating_ip:
+      type: boolean
+      default: true
+      description: "Assign floating IP to VM"
+  required:
+    - hyperstack_api
+    - hostname
+    - flavor_id

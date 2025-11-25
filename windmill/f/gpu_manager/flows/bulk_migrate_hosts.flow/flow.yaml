@@ -1,0 +1,229 @@
+summary: "Bulk migrate multiple hosts"
+description: "Migrate multiple hosts from one aggregate to another with validation and parallel execution"
+value:
+  modules:
+    # Step 1: Validate all migrations
+    - id: a
+      summary: "Validate all migrations"
+      value:
+        type: script
+        content: |
+          import wmill
+
+          def main(openstack_connection: dict, hostnames: list, source_aggregate: str, target_aggregate: str) -> dict:
+              """Validate all migrations before executing"""
+              validation_results = []
+              all_valid = True
+
+              for hostname in hostnames:
+                  result = wmill.run_script_sync(
+                      path="f/gpu_manager/scripts/openstack/validate_migration",
+                      args={
+                          "openstack_connection": openstack_connection,
+                          "hostname": hostname,
+                          "source_aggregate": source_aggregate,
+                          "target_aggregate": target_aggregate
+                      }
+                  )
+
+                  validation_results.append({
+                      "hostname": hostname,
+                      "valid": result.get('valid', False),
+                      "message": result.get('message', '')
+                  })
+
+                  if not result.get('valid'):
+                      all_valid = False
+
+              if not all_valid:
+                  invalid_hosts = [v['hostname'] for v in validation_results if not v['valid']]
+                  raise ValueError(f"Validation failed for hosts: {', '.join(invalid_hosts)}")
+
+              return {
+                  "all_valid": all_valid,
+                  "validations": validation_results,
+                  "total_hosts": len(hostnames)
+              }
+        input_transforms:
+          openstack_connection:
+            type: javascript
+            expr: "flow_input.openstack_connection"
+          hostnames:
+            type: javascript
+            expr: "flow_input.hostnames"
+          source_aggregate:
+            type: javascript
+            expr: "flow_input.source_aggregate"
+          target_aggregate:
+            type: javascript
+            expr: "flow_input.target_aggregate"
+        language: python3
+
+    # Step 2: Execute migrations (parallel or sequential based on parameter)
+    - id: b
+      summary: "Execute migrations"
+      value:
+        type: script
+        content: |
+          import wmill
+          from concurrent.futures import ThreadPoolExecutor, as_completed
+
+          def migrate_single_host(openstack_connection, hostname, source_aggregate, target_aggregate):
+              """Migrate a single host"""
+              try:
+                  # Use the migrate_host flow
+                  result = wmill.run_flow_sync(
+                      path="f/gpu_manager/flows/migrate_host",
+                      args={
+                          "openstack_connection": openstack_connection,
+                          "hostname": hostname,
+                          "source_aggregate": source_aggregate,
+                          "target_aggregate": target_aggregate
+                      }
+                  )
+                  return {"hostname": hostname, "success": True, "result": result}
+              except Exception as e:
+                  return {"hostname": hostname, "success": False, "error": str(e)}
+
+          def main(openstack_connection: dict, hostnames: list, source_aggregate: str, target_aggregate: str, parallel: bool = True, max_workers: int = 5) -> dict:
+              """Execute migrations for all hosts"""
+              results = []
+
+              if parallel:
+                  # Parallel execution
+                  with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                      futures = {
+                          executor.submit(migrate_single_host, openstack_connection, hostname, source_aggregate, target_aggregate): hostname
+                          for hostname in hostnames
+                      }
+
+                      for future in as_completed(futures):
+                          results.append(future.result())
+              else:
+                  # Sequential execution
+                  for hostname in hostnames:
+                      results.append(migrate_single_host(openstack_connection, hostname, source_aggregate, target_aggregate))
+
+              # Count successes and failures
+              successes = [r for r in results if r['success']]
+              failures = [r for r in results if not r['success']]
+
+              return {
+                  "total": len(hostnames),
+                  "successes": len(successes),
+                  "failures": len(failures),
+                  "results": results,
+                  "success_hostnames": [r['hostname'] for r in successes],
+                  "failure_hostnames": [r['hostname'] for r in failures]
+              }
+        input_transforms:
+          openstack_connection:
+            type: javascript
+            expr: "flow_input.openstack_connection"
+          hostnames:
+            type: javascript
+            expr: "flow_input.hostnames"
+          source_aggregate:
+            type: javascript
+            expr: "flow_input.source_aggregate"
+          target_aggregate:
+            type: javascript
+            expr: "flow_input.target_aggregate"
+          parallel:
+            type: javascript
+            expr: "flow_input.parallel !== false"
+          max_workers:
+            type: javascript
+            expr: "flow_input.max_workers || 5"
+        language: python3
+
+    # Step 3: Return summary
+    - id: c
+      summary: "Migration summary"
+      value:
+        type: script
+        content: |
+          def main(validation: dict, migration: dict, source_aggregate: str, target_aggregate: str) -> dict:
+              return {
+                  "success": migration['failures'] == 0,
+                  "message": f"Migrated {migration['successes']}/{migration['total']} hosts from {source_aggregate} to {target_aggregate}",
+                  "source_aggregate": source_aggregate,
+                  "target_aggregate": target_aggregate,
+                  "validation": validation,
+                  "migration": migration
+              }
+        input_transforms:
+          validation:
+            type: javascript
+            expr: "results.a"
+          migration:
+            type: javascript
+            expr: "results.b"
+          source_aggregate:
+            type: javascript
+            expr: "flow_input.source_aggregate"
+          target_aggregate:
+            type: javascript
+            expr: "flow_input.target_aggregate"
+        language: python3
+
+  failure_module:
+    summary: "Handle bulk migration failure"
+    value:
+      type: script
+      content: |
+        def main(error: dict, flow_input: dict, results: dict):
+            return {
+                "success": False,
+                "message": f"Bulk migration failed: {error.get('message', 'Unknown error')}",
+                "source_aggregate": flow_input.get("source_aggregate"),
+                "target_aggregate": flow_input.get("target_aggregate"),
+                "hostnames": flow_input.get("hostnames"),
+                "error": error,
+                "partial_results": results
+            }
+      input_transforms:
+        error:
+          type: javascript
+          expr: "previous_result"
+        flow_input:
+          type: javascript
+          expr: "flow_input"
+        results:
+          type: javascript
+          expr: "results"
+      language: python3
+
+schema:
+  $schema: "https://json-schema.org/draft/2020-12/schema"
+  type: object
+  properties:
+    openstack_connection:
+      type: object
+      description: "OpenStack credentials resource"
+      format: resource-openstack_connection
+    hostnames:
+      type: array
+      items:
+        type: string
+      description: "List of hostnames to migrate"
+      minItems: 1
+    source_aggregate:
+      type: string
+      description: "Source aggregate name"
+    target_aggregate:
+      type: string
+      description: "Target aggregate name"
+    parallel:
+      type: boolean
+      default: true
+      description: "Execute migrations in parallel"
+    max_workers:
+      type: integer
+      default: 5
+      description: "Max parallel workers (if parallel=true)"
+  required:
+    - openstack_connection
+    - hostnames
+    - source_aggregate
+    - target_aggregate

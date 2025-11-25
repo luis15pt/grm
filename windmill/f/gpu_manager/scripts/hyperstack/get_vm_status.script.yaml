@@ -1,0 +1,19 @@
+summary: "Get Hyperstack VM status"
+description: "Retrieves current status and details of a Hyperstack VM"
+kind: script
+language: python3
+schema:
+  $schema: "https://json-schema.org/draft/2020-12/schema"
+  type: object
+  properties:
+    hyperstack_api:
+      type: object
+      description: "Hyperstack API credentials"
+      format: resource-hyperstack_api
+    vm_id:
+      type: string
+      description: "VM identifier to check"
+  required:
+    - hyperstack_api
+    - vm_id
+cache_ttl: 60

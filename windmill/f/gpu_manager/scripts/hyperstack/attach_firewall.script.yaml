@@ -1,0 +1,24 @@
+summary: "Attach firewall to Hyperstack VM"
+description: "Attaches firewall rules to a Hyperstack VM based on GPU type or explicit firewall ID"
+kind: script
+language: python3
+schema:
+  $schema: "https://json-schema.org/draft/2020-12/schema"
+  type: object
+  properties:
+    hyperstack_api:
+      type: object
+      description: "Hyperstack API credentials"
+      format: resource-hyperstack_api
+    vm_id:
+      type: string
+      description: "VM identifier"
+    gpu_type:
+      type: string
+      description: "GPU type (e.g., 'H100') - looks up firewall ID"
+    firewall_id:
+      type: string
+      description: "Explicit firewall ID (overrides gpu_type)"
+  required:
+    - hyperstack_api
+    - vm_id

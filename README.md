@@ -293,35 +293,70 @@ windmill/
 
 ### Features Implemented
 
-✅ **Core Scripts (20+)**:
-- OpenStack aggregate discovery
-- Host migration validation
-- VM count and GPU info retrieval
-- NetBox tenant lookups
-- Parallel data collection
+✅ **19 Core Scripts**:
+- **OpenStack** (6): Aggregate discovery, host migration, validation
+- **NetBox** (3): Device tenant lookups, GPU inventory
+- **Host** (3): VM counts, GPU usage info
+- **Hyperstack** (3): VM deployment, firewall, status checks
+- **Data** (1): Master parallel data collection
+- **Utility** (1): List/filter hosts by pool/GPU/owner
 
-✅ **Flows**:
-- Host migration workflow (validate → remove → add → verify)
+✅ **3 Orchestration Flows**:
+- **migrate_host**: Complete single host migration with validation
+- **launch_runpod_vm**: Deploy VM on RunPod with firewall
+- **bulk_migrate_hosts**: Parallel bulk migration workflow
 
-✅ **Dashboard App**:
-- GPU type selector
-- Pool type tabs (on-demand/spot/runpod/contract)
-- Host table with filters
-- Migration actions
-- Auto-refresh data
-
-✅ **Resources**:
+✅ **3 Resource Types**:
 - OpenStack connection credentials
 - NetBox API credentials
 - Hyperstack/RunPod API credentials
 
-### Roadmap
+✅ **API Access**:
+- Every script auto-exposed as REST API
+- Webhook support for external triggers
+- Token-based authentication
 
-🚧 **In Progress**:
-- RunPod VM launch flow
-- Bulk migration operations
-- Advanced filtering and search
-- Contract hardware operations
+### Usage Examples
+
+**List all H100 spot hosts:**
+```bash
+# Via Windmill UI
+Scripts → list_hosts_by_pool → Run
+gpu_type: "H100", pool_type: "spot"
+```
+
+**Migrate a single host:**
+```bash
+# Via Windmill UI
+Flows → migrate_host → Run
+hostname: "gpu-h100-spot-001"
+source: "H100-n3-spot", target: "H100-n3"
+```
+
+**Bulk migrate multiple hosts:**
+```bash
+# Via API
+curl -X POST .../bulk_migrate_hosts \
+  -d '{"hostnames": ["host1", "host2", "host3"], ...}'
+```
+
+**Deploy RunPod VM:**
+```bash
+# Via Windmill UI
+Flows → launch_runpod_vm → Run
+hostname: "runpod-h100-new-001"
+```
+
+See **[USAGE_GUIDE.md](windmill/USAGE_GUIDE.md)** for detailed examples!
+
+### Future Enhancements
+
+**Potential additions:**
+- Frontend dashboard (once workflows are solid)
+- Automated idle host detection
+- Cost optimization workflows
+- Slack/Discord notification integrations
+- Advanced reporting and analytics
 
 ### Support
 

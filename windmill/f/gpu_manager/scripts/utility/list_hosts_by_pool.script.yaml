@@ -1,0 +1,32 @@
+summary: "List hosts by GPU type and pool"
+description: "Returns all hosts organized by GPU type and pool with optional filtering"
+kind: script
+language: python3
+schema:
+  $schema: "https://json-schema.org/draft/2020-12/schema"
+  type: object
+  properties:
+    openstack_connection:
+      type: object
+      description: "OpenStack credentials"
+      format: resource-openstack_connection
+    netbox_api:
+      type: object
+      description: "NetBox API credentials"
+      format: resource-netbox_api
+    gpu_type:
+      type: string
+      description: "Filter by GPU type (optional)"
+      enum: ["H100", "A100", "L40", "RTX-A6000", "H200-SXM5", "H100-SXM5"]
+    pool_type:
+      type: string
+      description: "Filter by pool type (optional)"
+      enum: ["ondemand", "spot", "runpod", "contract"]
+    owner_filter:
+      type: string
+      description: "Filter by owner group (optional)"
+      enum: ["Investors", "Nexgen Cloud"]
+  required:
+    - openstack_connection
+    - netbox_api
+cache_ttl: 300

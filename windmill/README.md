@@ -56,6 +56,42 @@ windmill/
 - **Security**: Encrypted at rest, access-controlled
 - **Types**: Custom resource types define schema for credentials
 
+## Approach: Scripts & Workflows First
+
+This Windmill conversion focuses on **backend functionality** without a complex frontend:
+
+- **✅ 19 Python Scripts**: All core operations (OpenStack, NetBox, Hyperstack, Host management)
+- **✅ 3 Orchestration Flows**: Complete workflows (migrate host, launch RunPod VM, bulk migrations)
+- **✅ API Access**: Every script/flow is auto-exposed as an API
+- **❌ No Frontend (for now)**: Use Windmill UI or API to trigger operations
+
+**Why script-first?**
+- Get core functionality working solidly
+- Test and validate business logic
+- API-ready for integration with any frontend
+- Easy to trigger via CLI, cron, or external systems
+- Frontend can be added later once workflows are proven
+
+## How to Use
+
+### Via Windmill UI
+1. Navigate to **Scripts** → select script → **Run**
+2. Fill in parameters (resources auto-populated)
+3. Click **Run** → monitor progress → view results
+
+### Via API
+```bash
+curl -X POST https://windmill.com/api/w/workspace/jobs/run/SCRIPT_PATH \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{"param1": "value1", ...}'
+```
+
+### Via Scheduled Jobs
+- Set up cron schedules in Windmill UI
+- Automatically run operations (e.g., migrate idle hosts every hour)
+
+See **[USAGE_GUIDE.md](./USAGE_GUIDE.md)** for detailed examples and common workflows.
+
 ## How to Import to Windmill
 
 ### Option 1: Git Sync (Recommended)
