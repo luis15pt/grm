@@ -1,0 +1,19 @@
+summary: "Get GPU usage for host"
+description: "Returns GPU usage information including used/capacity ratio and VM count"
+kind: script
+language: python3
+schema:
+  $schema: "https://json-schema.org/draft/2020-12/schema"
+  type: object
+  properties:
+    openstack_connection:
+      type: object
+      description: "OpenStack credentials"
+      format: resource-openstack_connection
+    hostname:
+      type: string
+      description: "Compute host to query"
+  required:
+    - openstack_connection
+    - hostname
+cache_ttl: 300

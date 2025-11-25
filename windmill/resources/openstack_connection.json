@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "title": "OpenStack Connection",
+  "description": "Credentials for OpenStack cloud infrastructure",
+  "properties": {
+    "auth_url": {
+      "type": "string",
+      "description": "OpenStack authentication URL (e.g., https://openstack.example.com:5000/v3)",
+      "default": "https://openstack.example.com:5000/v3"
+    },
+    "username": {
+      "type": "string",
+      "description": "OpenStack username"
+    },
+    "password": {
+      "type": "string",
+      "description": "OpenStack password",
+      "format": "password"
+    },
+    "project_name": {
+      "type": "string",
+      "description": "OpenStack project/tenant name"
+    },
+    "user_domain_name": {
+      "type": "string",
+      "description": "User domain name",
+      "default": "Default"
+    },
+    "project_domain_name": {
+      "type": "string",
+      "description": "Project domain name",
+      "default": "Default"
+    },
+    "region_name": {
+      "type": "string",
+      "description": "OpenStack region",
+      "default": "RegionOne"
+    },
+    "interface": {
+      "type": "string",
+      "description": "API interface type",
+      "default": "public",
+      "enum": ["public", "internal", "admin"]
+    },
+    "identity_api_version": {
+      "type": "string",
+      "description": "Identity API version",
+      "default": "3"
+    }
+  },
+  "required": ["auth_url", "username", "password", "project_name"]
+}

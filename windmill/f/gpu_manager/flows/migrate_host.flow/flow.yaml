@@ -1,0 +1,180 @@
+summary: "Migrate host between aggregates"
+description: "Complete workflow to safely migrate a compute host from one aggregate to another with validation and verification"
+value:
+  modules:
+    # Step 1: Validate migration is allowed
+    - id: a
+      summary: "Validate migration"
+      value:
+        type: script
+        path: f/gpu_manager/scripts/openstack/validate_migration
+        input_transforms:
+          openstack_connection:
+            type: javascript
+            expr: "flow_input.openstack_connection"
+          hostname:
+            type: javascript
+            expr: "flow_input.hostname"
+          source_aggregate:
+            type: javascript
+            expr: "flow_input.source_aggregate"
+          target_aggregate:
+            type: javascript
+            expr: "flow_input.target_aggregate"
+        stop_after_if:
+          expr: "result.valid === false"
+          skip_if_stopped: false
+
+    # Step 2: Remove from source aggregate
+    - id: b
+      summary: "Remove from source"
+      value:
+        type: script
+        path: f/gpu_manager/scripts/openstack/remove_host_from_aggregate
+        input_transforms:
+          openstack_connection:
+            type: javascript
+            expr: "flow_input.openstack_connection"
+          hostname:
+            type: javascript
+            expr: "flow_input.hostname"
+          aggregate_name:
+            type: javascript
+            expr: "flow_input.source_aggregate"
+          dry_run:
+            type: javascript
+            expr: "flow_input.dry_run || false"
+        retry:
+          constant:
+            attempts: 3
+            seconds: 5
+
+    # Step 3: Add to target aggregate
+    - id: c
+      summary: "Add to target"
+      value:
+        type: script
+        path: f/gpu_manager/scripts/openstack/add_host_to_aggregate
+        input_transforms:
+          openstack_connection:
+            type: javascript
+            expr: "flow_input.openstack_connection"
+          hostname:
+            type: javascript
+            expr: "flow_input.hostname"
+          aggregate_name:
+            type: javascript
+            expr: "flow_input.target_aggregate"
+          dry_run:
+            type: javascript
+            expr: "flow_input.dry_run || false"
+        retry:
+          constant:
+            attempts: 3
+            seconds: 5
+
+    # Step 4: Verify migration
+    - id: d
+      summary: "Verify migration"
+      value:
+        type: script
+        path: f/gpu_manager/scripts/openstack/find_host_current_aggregate
+        input_transforms:
+          openstack_connection:
+            type: javascript
+            expr: "flow_input.openstack_connection"
+          hostname:
+            type: javascript
+            expr: "flow_input.hostname"
+        stop_after_if:
+          expr: "result.aggregate !== flow_input.target_aggregate"
+          skip_if_stopped: false
+
+    # Step 5: Return success result
+    - id: e
+      summary: "Migration complete"
+      value:
+        type: script
+        content: |
+          def main(hostname: str, source_aggregate: str, target_aggregate: str, validation: dict, verification: dict):
+              return {
+                  "success": True,
+                  "message": f"Successfully migrated {hostname} from {source_aggregate} to {target_aggregate}",
+                  "hostname": hostname,
+                  "source_aggregate": source_aggregate,
+                  "target_aggregate": target_aggregate,
+                  "validation": validation,
+                  "verification": verification
+              }
+        input_transforms:
+          hostname:
+            type: javascript
+            expr: "flow_input.hostname"
+          source_aggregate:
+            type: javascript
+            expr: "flow_input.source_aggregate"
+          target_aggregate:
+            type: javascript
+            expr: "flow_input.target_aggregate"
+          validation:
+            type: javascript
+            expr: "results.a"
+          verification:
+            type: javascript
+            expr: "results.d"
+        language: python3
+
+  failure_module:
+    summary: "Handle migration failure"
+    value:
+      type: script
+      content: |
+        def main(error: dict, flow_input: dict, results: dict):
+            import json
+            return {
+                "success": False,
+                "message": f"Migration failed: {error.get('message', 'Unknown error')}",
+                "hostname": flow_input.get("hostname"),
+                "source_aggregate": flow_input.get("source_aggregate"),
+                "target_aggregate": flow_input.get("target_aggregate"),
+                "error": error,
+                "partial_results": results
+            }
+      input_transforms:
+        error:
+          type: javascript
+          expr: "previous_result"
+        flow_input:
+          type: javascript
+          expr: "flow_input"
+        results:
+          type: javascript
+          expr: "results"
+      language: python3
+
+schema:
+  $schema: "https://json-schema.org/draft/2020-12/schema"
+  type: object
+  properties:
+    openstack_connection:
+      type: object
+      description: "OpenStack credentials resource"
+      format: resource-openstack_connection
+    hostname:
+      type: string
+      description: "Host to migrate (e.g., 'gpu-host-001')"
+    source_aggregate:
+      type: string
+      description: "Current aggregate"
+    target_aggregate:
+      type: string
+      description: "Target aggregate"
+    dry_run:
+      type: boolean
+      default: false
+      description: "Validate without executing"
+  required:
+    - openstack_connection
+    - hostname
+    - source_aggregate
+    - target_aggregate

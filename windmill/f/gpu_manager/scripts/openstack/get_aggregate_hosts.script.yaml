@@ -1,0 +1,19 @@
+summary: "Get hosts in an OpenStack aggregate"
+description: "Returns list of hosts in the specified aggregate"
+kind: script
+language: python3
+schema:
+  $schema: "https://json-schema.org/draft/2020-12/schema"
+  type: object
+  properties:
+    openstack_connection:
+      type: object
+      description: "OpenStack credentials"
+      format: resource-openstack_connection
+    aggregate_name:
+      type: string
+      description: "Name of the aggregate"
+  required:
+    - openstack_connection
+    - aggregate_name
+cache_ttl: 600

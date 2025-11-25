@@ -1,0 +1,21 @@
+summary: "Get bulk device tenants from NetBox"
+description: "Retrieves tenant information for multiple devices in a single efficient operation"
+kind: script
+language: python3
+schema:
+  $schema: "https://json-schema.org/draft/2020-12/schema"
+  type: object
+  properties:
+    netbox_api:
+      type: object
+      description: "NetBox API credentials"
+      format: resource-netbox_api
+    hostnames:
+      type: array
+      items:
+        type: string
+      description: "List of device hostnames to lookup"
+  required:
+    - netbox_api
+    - hostnames
+cache_ttl: 1800

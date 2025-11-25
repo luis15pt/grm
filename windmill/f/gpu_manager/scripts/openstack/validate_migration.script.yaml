@@ -1,0 +1,26 @@
+summary: "Validate host migration"
+description: "Checks if host migration between aggregates is allowed (GPU type match, VM count, etc.)"
+kind: script
+language: python3
+schema:
+  $schema: "https://json-schema.org/draft/2020-12/schema"
+  type: object
+  properties:
+    openstack_connection:
+      type: object
+      description: "OpenStack credentials"
+      format: resource-openstack_connection
+    hostname:
+      type: string
+      description: "Host to migrate"
+    source_aggregate:
+      type: string
+      description: "Source aggregate name"
+    target_aggregate:
+      type: string
+      description: "Target aggregate name"
+  required:
+    - openstack_connection
+    - hostname
+    - source_aggregate
+    - target_aggregate

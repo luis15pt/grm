@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "title": "Hyperstack API",
+  "description": "Credentials for Hyperstack/RunPod cloud API",
+  "properties": {
+    "api_key": {
+      "type": "string",
+      "description": "Hyperstack API key",
+      "format": "password"
+    },
+    "base_url": {
+      "type": "string",
+      "description": "Hyperstack API base URL",
+      "default": "https://api.hyperstack.cloud/v1",
+      "format": "uri"
+    },
+    "firewall_id_map": {
+      "type": "object",
+      "description": "Mapping of GPU types to firewall IDs (JSON object)",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "default": {
+        "H100": "firewall-id-h100",
+        "A100": "firewall-id-a100",
+        "L40": "firewall-id-l40"
+      }
+    },
+    "default_image_id": {
+      "type": "string",
+      "description": "Default VM image ID",
+      "default": "ubuntu-22.04"
+    },
+    "default_network_id": {
+      "type": "string",
+      "description": "Default network ID"
+    }
+  },
+  "required": ["api_key"]
+}

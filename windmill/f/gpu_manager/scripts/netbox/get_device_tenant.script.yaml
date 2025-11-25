@@ -1,0 +1,19 @@
+summary: "Get device tenant from NetBox"
+description: "Retrieves tenant and owner information for a specific device from NetBox DCIM API"
+kind: script
+language: python3
+schema:
+  $schema: "https://json-schema.org/draft/2020-12/schema"
+  type: object
+  properties:
+    netbox_api:
+      type: object
+      description: "NetBox API credentials"
+      format: resource-netbox_api
+    hostname:
+      type: string
+      description: "Device hostname to lookup"
+  required:
+    - netbox_api
+    - hostname
+cache_ttl: 1800

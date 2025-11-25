@@ -1,0 +1,26 @@
+summary: "Remove host from OpenStack aggregate"
+description: "Removes a compute host from the specified aggregate"
+kind: script
+language: python3
+schema:
+  $schema: "https://json-schema.org/draft/2020-12/schema"
+  type: object
+  properties:
+    openstack_connection:
+      type: object
+      description: "OpenStack credentials"
+      format: resource-openstack_connection
+    hostname:
+      type: string
+      description: "Hostname to remove"
+    aggregate_name:
+      type: string
+      description: "Source aggregate name"
+    dry_run:
+      type: boolean
+      default: false
+      description: "Validate without executing"
+  required:
+    - openstack_connection
+    - hostname
+    - aggregate_name

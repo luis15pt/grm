@@ -1,0 +1,21 @@
+summary: "Collect all GPU data (master script)"
+description: "Comprehensive data collection from OpenStack and NetBox using parallel execution. Main data source for dashboard."
+kind: script
+language: python3
+schema:
+  $schema: "https://json-schema.org/draft/2020-12/schema"
+  type: object
+  properties:
+    openstack_connection:
+      type: object
+      description: "OpenStack credentials"
+      format: resource-openstack_connection
+    netbox_api:
+      type: object
+      description: "NetBox API credentials"
+      format: resource-netbox_api
+  required:
+    - openstack_connection
+    - netbox_api
+cache_ttl: 600
+dedicated_worker: false

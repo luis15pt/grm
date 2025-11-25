@@ -1,0 +1,21 @@
+summary: "Discover GPU aggregates from OpenStack"
+description: "Dynamically discover and categorize GPU aggregates including on-demand, spot, RunPod, and contract hardware"
+kind: script
+language: python3
+schema:
+  $schema: "https://json-schema.org/draft/2020-12/schema"
+  type: object
+  properties:
+    openstack_connection:
+      type: object
+      description: "OpenStack credentials (use resource type: openstack_connection)"
+      format: resource-openstack_connection
+    force_refresh:
+      type: boolean
+      default: false
+      description: "Force cache refresh (Windmill provides native caching)"
+  required:
+    - openstack_connection
+lock: null
+cache_ttl: 1800
+dedicated_worker: false

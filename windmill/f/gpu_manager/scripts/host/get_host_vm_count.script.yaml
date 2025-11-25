@@ -1,0 +1,19 @@
+summary: "Get VM count for host"
+description: "Returns count of VMs running on the specified compute host (faster than full VM list)"
+kind: script
+language: python3
+schema:
+  $schema: "https://json-schema.org/draft/2020-12/schema"
+  type: object
+  properties:
+    openstack_connection:
+      type: object
+      description: "OpenStack credentials"
+      format: resource-openstack_connection
+    hostname:
+      type: string
+      description: "Compute host to query"
+  required:
+    - openstack_connection
+    - hostname
+cache_ttl: 300

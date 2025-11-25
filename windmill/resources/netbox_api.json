@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "title": "NetBox API",
+  "description": "Credentials for NetBox DCIM/IPAM API",
+  "properties": {
+    "base_url": {
+      "type": "string",
+      "description": "NetBox base URL (e.g., https://netbox.example.com)",
+      "format": "uri"
+    },
+    "api_token": {
+      "type": "string",
+      "description": "NetBox API token",
+      "format": "password"
+    }
+  },
+  "required": ["base_url", "api_token"]
+}

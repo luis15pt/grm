@@ -1,0 +1,19 @@
+summary: "Get all GPU devices from NetBox"
+description: "Retrieves complete GPU device inventory including active and inactive devices for out-of-stock tracking"
+kind: script
+language: python3
+schema:
+  $schema: "https://json-schema.org/draft/2020-12/schema"
+  type: object
+  properties:
+    netbox_api:
+      type: object
+      description: "NetBox API credentials"
+      format: resource-netbox_api
+    include_inactive:
+      type: boolean
+      default: true
+      description: "Include non-active devices"
+  required:
+    - netbox_api
+cache_ttl: 1800

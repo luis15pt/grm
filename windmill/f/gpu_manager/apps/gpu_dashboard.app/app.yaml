@@ -1,0 +1,280 @@
+summary: "GPU Resource Manager Dashboard"
+description: "Main dashboard for managing GPU compute hosts across multiple pools (on-demand, spot, RunPod, contract)"
+value:
+  grid:
+    - "12"  # Single column layout
+  fullscreen: false
+  unusedInlineScripts: []
+  hideLogo: false
+  css:
+    global: |
+      /* Custom styling for GPU dashboard */
+      .gpu-table {
+        font-size: 14px;
+      }
+      .migration-actions {
+        background: #f5f5f5;
+        padding: 16px;
+        border-radius: 8px;
+        margin-top: 16px;
+      }
+
+components:
+  # GPU Type Selector Tabs
+  - id: gpu_type_tabs
+    type: tabscomponent
+    configuration:
+      tabs:
+        - H100
+        - A100
+        - L40
+        - RTX-A6000
+        - Out of Stock
+      default_tab: H100
+    position:
+      x: 0
+      y: 0
+      w: 12
+      h: 1
+
+  # Pool Type Selector (Sub-tabs)
+  - id: pool_type_tabs
+    type: tabscomponent
+    configuration:
+      tabs:
+        - On-Demand
+        - Spot
+        - RunPod
+        - Contract
+      default_tab: On-Demand
+    position:
+      x: 0
+      y: 1
+      w: 12
+      h: 1
+    # Only show when GPU type is selected
+    visible:
+      expr: "state.selectedGpuType !== 'Out of Stock'"
+
+  # Main Host Table (AgGrid)
+  - id: host_table
+    type: aggridcomponent
+    configuration:
+      columnDefs:
+        - field: hostname
+          headerName: Hostname
+          sortable: true
+          filter: true
+          checkboxSelection: true
+        - field: aggregate
+          headerName: Aggregate
+          sortable: true
+          filter: true
+        - field: vm_count
+          headerName: VMs
+          sortable: true
+          filter: true
+          width: 80
+        - field: gpu_usage_ratio
+          headerName: GPU Usage
+          sortable: true
+          width: 120
+        - field: tenant_info.tenant
+          headerName: Tenant
+          sortable: true
+          filter: true
+        - field: tenant_info.owner_group
+          headerName: Owner
+          sortable: true
+          filter: true
+        - field: tenant_info.nvlinks
+          headerName: NVLinks
+          sortable: true
+          width: 100
+      rowSelection: single
+      pagination: true
+      paginationPageSize: 50
+      flex: true
+    position:
+      x: 0
+      y: 2
+      w: 12
+      h: 8
+    componentInput:
+      type: static
+      value: []
+      # In production, this would be connected to background runnable:
+      # type: connected
+      # path: f/gpu_manager/scripts/data/get_parallel_data
+      # transforms:
+      #   expr: "results[state.selectedGpuType].hosts"
+
+  # Migration Actions Panel
+  - id: migration_panel
+    type: containercomponent
+    configuration:
+      class: migration-actions
+    position:
+      x: 0
+      y: 10
+      w: 12
+      h: 2
+    visible:
+      expr: "state.selectedHost !== null"
+    components:
+      # Selected Host Display
+      - id: selected_host_text
+        type: textcomponent
+        configuration:
+          text:
+            expr: "'Selected Host: ' + (state.selectedHost?.hostname || 'None')"
+          style: font-weight-bold
+        position:
+          x: 0
+          y: 0
+          w: 6
+          h: 1
+
+      # Target Aggregate Selector
+      - id: target_aggregate_select
+        type: selectcomponent
+        configuration:
+          label: "Target Aggregate"
+          items:
+            # In production, populated from discovered aggregates
+            - H100-n3
+            - H100-n3-NVLink
+            - H100-n3-spot
+            - H100-n3-runpod
+            - Contract-H100
+          placeholder: "Choose target aggregate..."
+        position:
+          x: 0
+          y: 1
+          w: 4
+          h: 1
+
+      # Validate Button
+      - id: validate_migration_button
+        type: buttoncomponent
+        configuration:
+          label: "Validate Migration"
+          color: blue
+          size: sm
+          runnable:
+            type: runnableByName
+            name: validate_migration
+            inlineScript:
+              content: |
+                import wmill
+
+                def main(openstack_connection: dict, hostname: str, source_aggregate: str, target_aggregate: str):
+                    return wmill.run_script_sync(
+                        path="f/gpu_manager/scripts/openstack/validate_migration",
+                        args={
+                            "openstack_connection": openstack_connection,
+                            "hostname": hostname,
+                            "source_aggregate": source_aggregate,
+                            "target_aggregate": target_aggregate
+                        }
+                    )
+              language: python3
+              schema:
+                properties:
+                  openstack_connection:
+                    type: object
+                    format: resource-openstack_connection
+                  hostname:
+                    type: string
+                  source_aggregate:
+                    type: string
+                  target_aggregate:
+                    type: string
+        position:
+          x: 4
+          y: 1
+          w: 2
+          h: 1
+
+      # Execute Migration Button
+      - id: execute_migration_button
+        type: buttoncomponent
+        configuration:
+          label: "Execute Migration"
+          color: red
+          size: sm
+          runnable:
+            type: runnableByPath
+            path: f/gpu_manager/flows/migrate_host
+            # Triggers the migration flow
+        position:
+          x: 6
+          y: 1
+          w: 2
+          h: 1
+
+      # Refresh Data Button
+      - id: refresh_button
+        type: buttoncomponent
+        configuration:
+          label: "Refresh Data"
+          color: green
+          size: sm
+          runnable:
+            type: runnableByPath
+            path: f/gpu_manager/scripts/data/get_parallel_data
+        position:
+          x: 8
+          y: 1
+          w: 2
+          h: 1
+
+# Background Runnables (auto-refresh data)
+backgroundRunnables:
+  - id: load_gpu_data
+    path: f/gpu_manager/scripts/data/get_parallel_data
+    recomputeOnStart: true
+    recomputeInterval: 600  # 10 minutes
+    args:
+      openstack_connection: "$res:openstack_prod"
+      netbox_api: "$res:netbox_prod"
+
+# Frontend State Management
+inlineScripts:
+  - path: f/gpu_manager/apps/gpu_dashboard/init_state
+    content: |
+      // Initialize app state
+      return {
+        selectedGpuType: 'H100',
+        selectedPoolType: 'On-Demand',
+        selectedHost: null,
+        targetAggregate: null,
+        lastRefresh: null
+      }
+    language: frontend
+
+  - path: f/gpu_manager/apps/gpu_dashboard/on_host_select
+    content: |
+      // Handle host row selection
+      export async function main(selectedRow: any) {
+        state.selectedHost = selectedRow
+        return selectedRow
+      }
+    language: frontend
+
+# App Metadata
+schema:
+  $schema: "https://json-schema.org/draft/2020-12/schema"
+  type: object
+  properties:
+    openstack_connection:
+      type: object
+      format: resource-openstack_connection
+      description: "OpenStack credentials"
+    netbox_api:
+      type: object
+      format: resource-netbox_api
+      description: "NetBox API credentials"
+  required:
+    - openstack_connection
+    - netbox_api

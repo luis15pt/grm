@@ -196,8 +196,145 @@ See [Deployment Guide](DEPLOYMENT_GUIDE.md) for complete production setup instru
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
+## Windmill Version 🌬️
+
+**NEW**: This project has been converted to Windmill for improved scalability, maintainability, and enterprise features!
+
+### What is Windmill?
+
+[Windmill](https://www.windmill.dev/) is an open-source developer platform that turns scripts into auto-generated UIs, APIs, and workflows. The Windmill version of GRM provides:
+
+- **Enterprise-grade orchestration**: Built-in job queue, retries, error handling
+- **Better scalability**: Horizontal scaling with worker pools
+- **Native caching**: PostgreSQL-backed caching across workers
+- **Automatic APIs**: Every script is auto-exposed as an API
+- **Built-in RBAC**: User permissions, audit logs, encrypted credentials
+- **Git-based deployment**: Version control with auto-deployment
+- **No manual server management**: Windmill handles everything
+
+### Getting Started with Windmill Version
+
+```bash
+# Switch to Windmill conversion branch
+git checkout windmill-conversion
+
+# Navigate to Windmill workspace
+cd windmill/
+
+# See setup guide
+cat WINDMILL_SETUP.md
+```
+
+### Key Documentation
+
+- **[WINDMILL_SETUP.md](windmill/WINDMILL_SETUP.md)** - Complete setup and configuration guide
+- **[WINDMILL_ARCHITECTURE.md](windmill/WINDMILL_ARCHITECTURE.md)** - Technical architecture details
+- **[MIGRATION_GUIDE.md](windmill/MIGRATION_GUIDE.md)** - Differences from Flask version
+
+### Windmill vs Flask Comparison
+
+| Feature | Flask Version | Windmill Version |
+|---------|---------------|------------------|
+| **Deployment** | Manual (Gunicorn + Docker) | Auto-deploy via Git sync |
+| **Scaling** | Vertical only | Horizontal (add workers) |
+| **Caching** | Manual (in-memory dicts) | Native (PostgreSQL) |
+| **APIs** | Manual Flask routes | Auto-generated |
+| **Auth/RBAC** | Custom or none | Built-in |
+| **Audit logs** | Custom logging | Built-in |
+| **Error handling** | Manual try-catch | Flow-based with retries |
+| **State persistence** | Lost on restart | PostgreSQL-backed |
+
+### Which Version to Use?
+
+**Use Flask Version if:**
+- You prefer traditional web app architecture
+- You want full control over UI/UX
+- You have specific Flask integrations
+- You're running on a single server
+
+**Use Windmill Version if:**
+- You want enterprise features (RBAC, audit logs)
+- You need horizontal scaling
+- You prefer declarative workflows
+- You want Git-based deployment
+- You need multi-tenant support
+- You want automatic API generation
+
+### Structure
+
+The Windmill version is organized as:
+
+```
+windmill/
+├── f/gpu_manager/
+│   ├── scripts/          # 20+ Python scripts (business logic)
+│   │   ├── openstack/   # OpenStack operations
+│   │   ├── netbox/      # NetBox integration
+│   │   ├── host/        # Host management
+│   │   └── data/        # Data collection
+│   ├── flows/           # Multi-step workflows
+│   │   └── migrate_host.flow/
+│   └── apps/            # UI applications
+│       └── gpu_dashboard.app/
+├── resources/           # Credential schemas
+├── WINDMILL_SETUP.md    # Setup guide
+├── WINDMILL_ARCHITECTURE.md  # Technical docs
+└── MIGRATION_GUIDE.md   # Migration guide
+```
+
+### Quick Deploy to Windmill
+
+1. **Set up Windmill instance** (https://www.windmill.dev/)
+2. **Configure Git Sync** in Windmill UI
+3. **Point to this repo** (windmill-conversion branch)
+4. **Auto-deploys** all scripts, flows, and apps
+5. **Create resources** (OpenStack, NetBox credentials)
+6. **Launch dashboard** and start managing GPUs!
+
+### Features Implemented
+
+✅ **Core Scripts (20+)**:
+- OpenStack aggregate discovery
+- Host migration validation
+- VM count and GPU info retrieval
+- NetBox tenant lookups
+- Parallel data collection
+
+✅ **Flows**:
+- Host migration workflow (validate → remove → add → verify)
+
+✅ **Dashboard App**:
+- GPU type selector
+- Pool type tabs (on-demand/spot/runpod/contract)
+- Host table with filters
+- Migration actions
+- Auto-refresh data
+
+✅ **Resources**:
+- OpenStack connection credentials
+- NetBox API credentials
+- Hyperstack/RunPod API credentials
+
+### Roadmap
+
+🚧 **In Progress**:
+- RunPod VM launch flow
+- Bulk migration operations
+- Advanced filtering and search
+- Contract hardware operations
+
+### Support
+
+For Windmill-specific questions:
+- **Windmill Docs**: https://docs.windmill.dev/
+- **Discord**: https://discord.com/invite/V7PM2YHsPB
+- **Issues**: Open an issue with [Windmill] prefix
+
+---
+
 ## Acknowledgments
 
 - OpenStack SDK for cloud integration
-- Bootstrap for responsive UI framework
+- Bootstrap for responsive UI framework (Flask version)
 - Font Awesome for icons and visual elements
+- Windmill for the enterprise orchestration platform

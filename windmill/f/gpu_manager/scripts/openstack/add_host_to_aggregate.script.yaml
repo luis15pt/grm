@@ -1,0 +1,26 @@
+summary: "Add host to OpenStack aggregate"
+description: "Adds a compute host to the specified aggregate"
+kind: script
+language: python3
+schema:
+  $schema: "https://json-schema.org/draft/2020-12/schema"
+  type: object
+  properties:
+    openstack_connection:
+      type: object
+      description: "OpenStack credentials"
+      format: resource-openstack_connection
+    hostname:
+      type: string
+      description: "Hostname to add"
+    aggregate_name:
+      type: string
+      description: "Target aggregate name"
+    dry_run:
+      type: boolean
+      default: false
+      description: "Validate without executing"
+  required:
+    - openstack_connection
+    - hostname
+    - aggregate_name
