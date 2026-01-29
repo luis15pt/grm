@@ -590,26 +590,13 @@
                                     <div id="rackFilters" class="mb-4">
                                         <div class="row align-items-end">
                                             <div class="col-md-3">
-                                                <label class="form-label">Site</label>
+                                                <label class="form-label">Datacenter</label>
                                                 <select id="rackSiteFilter" class="form-select form-select-sm">
                                                     <option value="">All Sites</option>
                                                     <option value="CA1" selected>CA1</option>
                                                 </select>
                                             </div>
-                                            <div class="col-md-3">
-                                                <label class="form-label">GPU Type</label>
-                                                <select id="rackGpuFilter" class="form-select form-select-sm">
-                                                    <option value="">All GPU Types</option>
-                                                    <option value="H100">H100</option>
-                                                    <option value="H200">H200</option>
-                                                    <option value="A100">A100</option>
-                                                    <option value="A6000">A6000</option>
-                                                    <option value="L40S">L40S</option>
-                                                    <option value="L40">L40</option>
-                                                    <option value="4090">4090</option>
-                                                </select>
-                                            </div>
-                                            <div class="col-md-4">
+                                            <div class="col-md-5">
                                                 <label class="form-label">Show Owners</label>
                                                 <div class="d-flex gap-3">
                                                     <div class="form-check">
@@ -626,7 +613,7 @@
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div class="col-md-2 text-end">
+                                            <div class="col-md-4 text-end">
                                                 <button class="btn btn-sm btn-outline-primary" onclick="rackView.loadData()" title="Refresh rack data">
                                                     <i class="fas fa-sync-alt"></i> Refresh
                                                 </button>

@@ -84,12 +84,23 @@ class RackView {
             });
         }
 
-        // GPU type filter
-        const gpuFilter = document.getElementById('rackGpuFilter');
-        if (gpuFilter) {
-            gpuFilter.addEventListener('change', (e) => {
-                this.filters.gpuType = e.target.value;
-                this.loadData();
+        // Use main GPU type selector from toolbar
+        const gpuSelect = document.getElementById('gpuSelect');
+        if (gpuSelect) {
+            // Set initial value from main selector
+            const selectedGpu = gpuSelect.value;
+            if (selectedGpu && selectedGpu !== 'All') {
+                this.filters.gpuType = selectedGpu;
+            }
+            // Listen for changes on main GPU selector
+            gpuSelect.addEventListener('change', (e) => {
+                const value = e.target.value;
+                this.filters.gpuType = (value && value !== 'All') ? value : '';
+                // Only reload if rack view is visible
+                const container = document.getElementById('rackViewContainer');
+                if (container && container.style.display !== 'none') {
+                    this.loadData();
+                }
             });
         }
 
@@ -613,6 +624,13 @@ class RackView {
     show() {
         const container = document.getElementById('rackViewContainer');
         const aggregateView = document.getElementById('hostsRow');
+
+        // Sync GPU type filter from main selector
+        const gpuSelect = document.getElementById('gpuSelect');
+        if (gpuSelect) {
+            const value = gpuSelect.value;
+            this.filters.gpuType = (value && value !== 'All') ? value : '';
+        }
 
         if (container) {
             container.style.display = 'block';
