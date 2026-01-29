@@ -629,7 +629,11 @@ class RackView {
         const aggregateView = document.getElementById('hostsRow');
 
         if (container) container.style.display = 'none';
-        if (aggregateView) aggregateView.classList.remove('d-none');
+        // Clear the inline display style set by show() - this restores visibility
+        if (aggregateView) {
+            aggregateView.style.display = '';
+            aggregateView.classList.remove('d-none');
+        }
     }
 }
 
