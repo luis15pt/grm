@@ -169,6 +169,23 @@ class RackView {
         const byGpu = summary.by_gpu_type || {};
         const totals = summary.totals || {};
 
+        // Calculate availability (Empty vs In Use) from rack data
+        let emptyCount = 0;
+        let inUseCount = 0;
+        if (this.rackData.racks) {
+            this.rackData.racks.forEach(rack => {
+                if (rack.devices) {
+                    rack.devices.forEach(device => {
+                        if ((device.gpu_used || 0) > 0) {
+                            inUseCount++;
+                        } else {
+                            emptyCount++;
+                        }
+                    });
+                }
+            });
+        }
+
         // Build GPU breakdown HTML
         let gpuBreakdownHtml = '';
         Object.entries(byGpu).forEach(([gpu, counts]) => {
@@ -183,11 +200,11 @@ class RackView {
 
         summaryEl.innerHTML = `
             <div class="row">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <div class="summary-card">
                         <h6 class="text-muted mb-2">OWNERSHIP</h6>
                         <div class="d-flex justify-content-between mb-1">
-                            <span class="text-success"><i class="fas fa-building"></i> NexGen Cloud:</span>
+                            <span class="text-success"><i class="fas fa-building"></i> NexGen:</span>
                             <strong>${byOwner['Nexgen Cloud']?.total || 0}</strong>
                         </div>
                         <div class="d-flex justify-content-between mb-1">
@@ -201,7 +218,25 @@ class RackView {
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
+                    <div class="summary-card">
+                        <h6 class="text-muted mb-2">AVAILABILITY</h6>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-success"><i class="fas fa-server"></i> Empty:</span>
+                            <strong>${emptyCount}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-warning"><i class="fas fa-circle"></i> In Use:</span>
+                            <strong>${inUseCount}</strong>
+                        </div>
+                        <hr class="my-2">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-danger"><i class="fas fa-tag"></i> For Sale:</span>
+                            <strong>${totals.for_sale || 0}</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
                     <div class="summary-card">
                         <h6 class="text-muted mb-2">STATUS</h6>
                         <div class="d-flex justify-content-between mb-1">
@@ -209,19 +244,14 @@ class RackView {
                             <strong>${(byOwner['Nexgen Cloud']?.active || 0) + (byOwner['Investors']?.active || 0)}</strong>
                         </div>
                         <div class="d-flex justify-content-between mb-1">
-                            <span class="text-warning"><i class="fas fa-tag"></i> For Sale:</span>
-                            <strong>${totals.for_sale || 0}</strong>
-                        </div>
-                        <hr class="my-2">
-                        <div class="d-flex justify-content-between">
-                            <span><strong>Racks:</strong></span>
+                            <span class="text-muted"><i class="fas fa-th"></i> Racks:</span>
                             <strong>${totals.total_racks || 0}</strong>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <div class="summary-card">
-                        <h6 class="text-muted mb-2">GPU BREAKDOWN (NexGen)</h6>
+                        <h6 class="text-muted mb-2">GPU BREAKDOWN</h6>
                         <div class="gpu-breakdown">
                             ${gpuBreakdownHtml || '<span class="text-muted">No GPU data</span>'}
                         </div>
