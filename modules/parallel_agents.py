@@ -267,7 +267,12 @@ def netbox_agent():
             # Extract additional device information
             site = device.get('site', {}).get('name', 'Unknown') if device.get('site') else 'Unknown'
             rack = device.get('rack', {}).get('name', 'Unknown') if device.get('rack') else 'Unknown'
-            
+
+            # Rack position (U slot in rack) and device height
+            rack_position = device.get('position')  # U position in rack (1 = bottom)
+            device_type_data = device.get('device_type', {}) or {}
+            u_height = device_type_data.get('u_height', 4) if device_type_data else 4  # Default 4U for GPU servers
+
             # Create complete device record for ALL devices
             device_record = {
                 'hostname': hostname,
@@ -280,6 +285,8 @@ def netbox_agent():
                 'status_label': status_label,
                 'site': site,
                 'rack': rack,
+                'rack_position': rack_position,  # U position in rack for rack visualization
+                'u_height': u_height,            # Device height in U for rack visualization
                 'device_tags': device_tag_names,
                 'has_gpu_tag': has_gpu_tag,
                 'is_gpu_server': is_gpu_server,

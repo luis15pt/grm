@@ -125,8 +125,8 @@ def get_netbox_tenant(hostname):
 
 def get_rack_visualization_data(site_filter=None, gpu_type_filter=None, owner_filter=None):
     """
-    Fetch rack visualization data using parallel agents as source of truth for device info,
-    and NetBox for rack position/u_height data.
+    Get rack visualization data using parallel agents as the single source of truth.
+    All data including rack_position and u_height comes from parallel agents.
 
     Args:
         site_filter: Filter by datacenter site (e.g., 'Enovum')
@@ -147,40 +147,33 @@ def get_rack_visualization_data(site_filter=None, gpu_type_filter=None, owner_fi
     # Import here to avoid circular imports
     from modules.parallel_agents import get_all_data_parallel
 
-    headers = {}
-    if NETBOX_URL and NETBOX_API_KEY:
-        headers = {
-            'Authorization': f'Token {NETBOX_API_KEY}',
-            'Content-Type': 'application/json'
-        }
-
     try:
-        # Step 1: Get all device data from parallel agents (source of truth)
-        print(f"🔄 Loading device data from parallel agents...")
+        # Step 1: Get all device data from parallel agents (single source of truth)
+        print(f"🔄 Loading rack visualization data from parallel agents...")
         parallel_data = get_all_data_parallel()
 
         # Collect all hosts from all GPU types
         all_hosts = []
-        for gpu_type, gpu_data in parallel_data.items():
-            if gpu_type.startswith('_'):
+        for gpu_type_key, gpu_data in parallel_data.items():
+            if gpu_type_key.startswith('_'):
                 continue  # Skip internal keys
             hosts = gpu_data.get('hosts', [])
             for host in hosts:
                 # Add gpu_type to host data if not present
-                if 'gpu_type' not in host:
-                    host['gpu_type'] = gpu_type
+                if 'gpu_type' not in host or not host.get('gpu_type'):
+                    host['gpu_type'] = gpu_type_key
                 all_hosts.append(host)
 
         print(f"📊 Loaded {len(all_hosts)} hosts from parallel agents")
 
-        # Step 2: Apply filters using accurate parallel agents data
+        # Step 2: Apply filters
         filtered_hosts = []
         for host in all_hosts:
             # Site filter
             if site_filter and host.get('site') != site_filter:
                 continue
 
-            # GPU type filter (use accurate gpu_type from parallel agents)
+            # GPU type filter
             if gpu_type_filter and host.get('gpu_type') != gpu_type_filter:
                 continue
 
@@ -192,55 +185,8 @@ def get_rack_visualization_data(site_filter=None, gpu_type_filter=None, owner_fi
 
         print(f"🔍 After filters: {len(filtered_hosts)} hosts (site={site_filter}, gpu={gpu_type_filter}, owner={owner_filter})")
 
-        # Step 3: Fetch position data from NetBox (only if configured)
-        netbox_positions = {}  # hostname -> {position, u_height, device_type_id}
-        device_type_heights = {}  # device_type_id -> u_height
-
-        if NETBOX_URL and NETBOX_API_KEY:
-            # Fetch device-types for u_height
-            try:
-                device_types_url = f"{NETBOX_URL}/api/dcim/device-types/"
-                device_types_response = requests.get(device_types_url, headers=headers, params={'limit': 500}, timeout=30)
-                if device_types_response.status_code == 200:
-                    for dt in device_types_response.json().get('results', []):
-                        device_type_heights[dt.get('id')] = dt.get('u_height', 4)
-                    print(f"📐 Loaded {len(device_type_heights)} device-types")
-            except Exception as e:
-                print(f"⚠️ Could not fetch device-types: {e}")
-
-            # Fetch device positions from NetBox
-            try:
-                devices_url = f"{NETBOX_URL}/api/dcim/devices/"
-                devices_params = {'limit': 1000}
-                offset = 0
-                while True:
-                    devices_params['offset'] = offset
-                    devices_response = requests.get(devices_url, headers=headers, params=devices_params, timeout=30)
-                    if devices_response.status_code != 200:
-                        print(f"⚠️ NetBox devices API error: {devices_response.status_code}")
-                        break
-
-                    devices_batch = devices_response.json().get('results', [])
-                    for device in devices_batch:
-                        hostname = device.get('name', '')
-                        device_type_id = device.get('device_type', {}).get('id') if device.get('device_type') else None
-                        netbox_positions[hostname] = {
-                            'position': device.get('position'),
-                            'u_height': device_type_heights.get(device_type_id, 4) if device_type_id else 4,
-                            'netbox_id': device.get('id'),
-                            'netbox_url': device.get('url')
-                        }
-
-                    if len(devices_batch) < 1000:
-                        break
-                    offset += 1000
-
-                print(f"📍 Loaded positions for {len(netbox_positions)} devices from NetBox")
-            except Exception as e:
-                print(f"⚠️ Could not fetch device positions: {e}")
-
-        # Step 4: Organize devices by rack
-        rack_devices = {}  # rack_name -> list of devices
+        # Step 3: Organize devices by rack
+        rack_devices = {}  # rack_name -> {'site': str, 'devices': []}
         unpositioned_devices = []
 
         # Summary counters
@@ -267,10 +213,9 @@ def get_rack_visualization_data(site_filter=None, gpu_type_filter=None, owner_fi
             status = host.get('status', 'active')
             nvlinks = host.get('nvlinks', False)
 
-            # Get position data from NetBox lookup
-            netbox_info = netbox_positions.get(hostname, {})
-            position = netbox_info.get('position')
-            u_height = netbox_info.get('u_height', 4)
+            # Get position and u_height directly from parallel agents data
+            position = host.get('rack_position')
+            u_height = host.get('u_height', 4)
 
             device_info = {
                 "hostname": hostname,
@@ -281,8 +226,8 @@ def get_rack_visualization_data(site_filter=None, gpu_type_filter=None, owner_fi
                 "tenant": tenant,
                 "status": status,
                 "nvlinks": nvlinks,
-                "netbox_id": netbox_info.get('netbox_id') or host.get('netbox_device_id'),
-                "netbox_url": netbox_info.get('netbox_url') or host.get('netbox_url'),
+                "netbox_id": host.get('netbox_device_id'),
+                "netbox_url": host.get('netbox_url'),
                 "vm_count": host.get('vm_count', 0),
                 "gpu_used": host.get('gpu_used', 0),
                 "gpu_capacity": host.get('gpu_capacity', 8)
