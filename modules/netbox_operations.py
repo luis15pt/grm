@@ -125,137 +125,122 @@ def get_netbox_tenant(hostname):
 
 def get_rack_visualization_data(site_filter=None, gpu_type_filter=None, owner_filter=None):
     """
-    Fetch rack and device positioning data from NetBox for rack visualization.
+    Fetch rack visualization data using parallel agents as source of truth for device info,
+    and NetBox for rack position/u_height data.
 
     Args:
-        site_filter: Filter by datacenter site (e.g., 'CA1')
+        site_filter: Filter by datacenter site (e.g., 'Enovum')
         gpu_type_filter: Filter by GPU type (e.g., 'H100', 'A100')
         owner_filter: Filter by owner ('Nexgen Cloud' or 'Investors')
 
     Returns: {
         "racks": [{
-            "id": 123,
-            "name": "Z01-T23",
-            "site": "CA1",
+            "id": "rack-name",
+            "name": "Z01-427",
+            "site": "Enovum",
             "u_height": 42,
-            "devices": [{
-                "hostname": "gpu-h100-001",
-                "position": 10,
-                "u_height": 4,
-                "owner_group": "Nexgen Cloud" | "Investors",
-                "gpu_type": "H100",
-                "tenant": "Chris Starkey",
-                "status": "active" | "decommissioning",
-                "nvlinks": true
-            }]
+            "devices": [{...}]
         }],
-        "summary": {
-            "by_owner": {...},
-            "by_gpu_type": {...},
-            "totals": {...}
-        }
+        "summary": {...}
     }
     """
-    if not NETBOX_URL or not NETBOX_API_KEY:
-        print("⚠️ NetBox not configured - cannot fetch rack visualization data")
-        return {"racks": [], "summary": {}, "error": "NetBox not configured"}
+    # Import here to avoid circular imports
+    from modules.parallel_agents import get_all_data_parallel
 
-    headers = {
-        'Authorization': f'Token {NETBOX_API_KEY}',
-        'Content-Type': 'application/json'
-    }
+    headers = {}
+    if NETBOX_URL and NETBOX_API_KEY:
+        headers = {
+            'Authorization': f'Token {NETBOX_API_KEY}',
+            'Content-Type': 'application/json'
+        }
 
     try:
-        # Step 1: Fetch all racks
-        racks_url = f"{NETBOX_URL}/api/dcim/racks/"
-        racks_params = {'limit': 500}
-        if site_filter:
-            # NetBox API uses site__name for filtering by site name
-            racks_params['site__name'] = site_filter
+        # Step 1: Get all device data from parallel agents (source of truth)
+        print(f"🔄 Loading device data from parallel agents...")
+        parallel_data = get_all_data_parallel()
 
-        print(f"📦 Fetching racks from NetBox with params: {racks_params}")
-        racks_response = requests.get(racks_url, headers=headers, params=racks_params, timeout=30)
-        if racks_response.status_code != 200:
-            print(f"❌ NetBox racks API error: {racks_response.status_code} - {racks_response.text[:200]}")
-            # Try without site filter as fallback
-            if site_filter:
-                print("⚠️ Retrying without site filter...")
-                racks_params = {'limit': 500}
-                racks_response = requests.get(racks_url, headers=headers, params=racks_params, timeout=30)
-                if racks_response.status_code != 200:
-                    return {"racks": [], "summary": {}, "error": f"API error: {racks_response.status_code}"}
+        # Collect all hosts from all GPU types
+        all_hosts = []
+        for gpu_type, gpu_data in parallel_data.items():
+            if gpu_type.startswith('_'):
+                continue  # Skip internal keys
+            hosts = gpu_data.get('hosts', [])
+            for host in hosts:
+                # Add gpu_type to host data if not present
+                if 'gpu_type' not in host:
+                    host['gpu_type'] = gpu_type
+                all_hosts.append(host)
 
-        racks_data = racks_response.json()
-        racks_list = racks_data.get('results', [])
+        print(f"📊 Loaded {len(all_hosts)} hosts from parallel agents")
 
-        # If site filter was provided, filter racks by site name client-side as backup
-        if site_filter and racks_list:
-            racks_list = [r for r in racks_list if r.get('site', {}).get('name') == site_filter]
+        # Step 2: Apply filters using accurate parallel agents data
+        filtered_hosts = []
+        for host in all_hosts:
+            # Site filter
+            if site_filter and host.get('site') != site_filter:
+                continue
 
-        print(f"📦 Fetched {len(racks_list)} racks from NetBox")
+            # GPU type filter (use accurate gpu_type from parallel agents)
+            if gpu_type_filter and host.get('gpu_type') != gpu_type_filter:
+                continue
 
-        # Step 2: Fetch all device-types to get u_height for each device type
-        device_types_url = f"{NETBOX_URL}/api/dcim/device-types/"
-        device_types_params = {'limit': 500}
+            # Owner filter
+            if owner_filter and host.get('owner_group') != owner_filter:
+                continue
+
+            filtered_hosts.append(host)
+
+        print(f"🔍 After filters: {len(filtered_hosts)} hosts (site={site_filter}, gpu={gpu_type_filter}, owner={owner_filter})")
+
+        # Step 3: Fetch position data from NetBox (only if configured)
+        netbox_positions = {}  # hostname -> {position, u_height, device_type_id}
         device_type_heights = {}  # device_type_id -> u_height
 
-        print(f"📐 Fetching device-types from NetBox for u_height data...")
-        device_types_response = requests.get(device_types_url, headers=headers, params=device_types_params, timeout=30)
-        if device_types_response.status_code == 200:
-            device_types_data = device_types_response.json()
-            for dt in device_types_data.get('results', []):
-                device_type_heights[dt.get('id')] = dt.get('u_height', 4)
-            print(f"📐 Loaded {len(device_type_heights)} device-types with u_height data")
-        else:
-            print(f"⚠️ Could not fetch device-types: {device_types_response.status_code} - using default u_height=4")
+        if NETBOX_URL and NETBOX_API_KEY:
+            # Fetch device-types for u_height
+            try:
+                device_types_url = f"{NETBOX_URL}/api/dcim/device-types/"
+                device_types_response = requests.get(device_types_url, headers=headers, params={'limit': 500}, timeout=30)
+                if device_types_response.status_code == 200:
+                    for dt in device_types_response.json().get('results', []):
+                        device_type_heights[dt.get('id')] = dt.get('u_height', 4)
+                    print(f"📐 Loaded {len(device_type_heights)} device-types")
+            except Exception as e:
+                print(f"⚠️ Could not fetch device-types: {e}")
 
-        # Step 3: Fetch all devices with rack positions
-        devices_url = f"{NETBOX_URL}/api/dcim/devices/"
-        devices_params = {
-            'limit': 1000,
-            'has_primary_ip': 'true',  # Only devices with IPs (actual servers)
-        }
-        if site_filter:
-            # NetBox API uses site__name for filtering by site name
-            devices_params['site__name'] = site_filter
-
-        all_devices = []
-        offset = 0
-        print(f"🖥️ Fetching devices from NetBox with params: {devices_params}")
-        while True:
-            devices_params['offset'] = offset
-            devices_response = requests.get(devices_url, headers=headers, params=devices_params, timeout=30)
-            if devices_response.status_code != 200:
-                print(f"❌ NetBox devices API error: {devices_response.status_code} - {devices_response.text[:200]}")
-                # Try without site filter as fallback
-                if site_filter and offset == 0:
-                    print("⚠️ Retrying devices without site filter...")
-                    devices_params.pop('site__name', None)
+            # Fetch device positions from NetBox
+            try:
+                devices_url = f"{NETBOX_URL}/api/dcim/devices/"
+                devices_params = {'limit': 1000}
+                offset = 0
+                while True:
+                    devices_params['offset'] = offset
                     devices_response = requests.get(devices_url, headers=headers, params=devices_params, timeout=30)
                     if devices_response.status_code != 200:
+                        print(f"⚠️ NetBox devices API error: {devices_response.status_code}")
                         break
-                else:
-                    break
 
-            devices_data = devices_response.json()
-            devices_batch = devices_data.get('results', [])
-            all_devices.extend(devices_batch)
+                    devices_batch = devices_response.json().get('results', [])
+                    for device in devices_batch:
+                        hostname = device.get('name', '')
+                        device_type_id = device.get('device_type', {}).get('id') if device.get('device_type') else None
+                        netbox_positions[hostname] = {
+                            'position': device.get('position'),
+                            'u_height': device_type_heights.get(device_type_id, 4) if device_type_id else 4,
+                            'netbox_id': device.get('id'),
+                            'netbox_url': device.get('url')
+                        }
 
-            if len(devices_batch) < 1000:
-                break
-            offset += 1000
+                    if len(devices_batch) < 1000:
+                        break
+                    offset += 1000
 
-        # If site filter was provided but API didn't support it, filter client-side
-        if site_filter and all_devices:
-            original_count = len(all_devices)
-            all_devices = [d for d in all_devices if d.get('site', {}).get('name') == site_filter]
-            if len(all_devices) != original_count:
-                print(f"🔍 Filtered devices by site '{site_filter}': {original_count} -> {len(all_devices)}")
+                print(f"📍 Loaded positions for {len(netbox_positions)} devices from NetBox")
+            except Exception as e:
+                print(f"⚠️ Could not fetch device positions: {e}")
 
-        print(f"🖥️ Fetched {len(all_devices)} devices from NetBox")
-
-        # Step 3: Process devices and organize by rack
-        rack_devices = {}  # rack_id -> list of devices
+        # Step 4: Organize devices by rack
+        rack_devices = {}  # rack_name -> list of devices
         unpositioned_devices = []
 
         # Summary counters
@@ -272,72 +257,49 @@ def get_rack_visualization_data(site_filter=None, gpu_type_filter=None, owner_fi
             }
         }
 
-        for device in all_devices:
-            device_name = device.get('name', '')
+        for host in filtered_hosts:
+            hostname = host.get('hostname') or host.get('name', '')
+            rack_name = host.get('rack', 'Unknown')
+            site = host.get('site', 'Unknown')
+            gpu_type = host.get('gpu_type', 'Unknown')
+            owner_group = host.get('owner_group', 'Investors')
+            tenant = host.get('tenant', 'Unknown')
+            status = host.get('status', 'active')
+            nvlinks = host.get('nvlinks', False)
 
-            # Extract GPU type from device name or device type
-            gpu_type = None
-            device_type_name = device.get('device_type', {}).get('model', '') if device.get('device_type') else ''
-
-            # Try to detect GPU type from name patterns
-            for gpu in ['H100', 'H200', 'A100', 'A6000', 'L40S', 'L40', 'A40', '4090', '3090']:
-                if gpu.lower() in device_name.lower() or gpu.lower() in device_type_name.lower():
-                    gpu_type = gpu
-                    break
-
-            # Apply GPU type filter
-            if gpu_type_filter and gpu_type != gpu_type_filter:
-                continue
-
-            # Get tenant and owner information
-            tenant_data = device.get('tenant', {})
-            tenant_name = tenant_data.get('name', 'Unknown') if tenant_data else 'Unknown'
-            owner_group = 'Nexgen Cloud' if tenant_name == 'Chris Starkey' else 'Investors'
-
-            # Apply owner filter
-            if owner_filter and owner_group != owner_filter:
-                continue
-
-            # Get device status
-            status_data = device.get('status', {})
-            status = status_data.get('value', 'active') if status_data else 'active'
-
-            # Get custom fields (NVLinks)
-            custom_fields = device.get('custom_fields', {})
-            nvlinks = custom_fields.get('NVLinks', False) or False
-
-            # Get rack and position info
-            rack_data = device.get('rack', {})
-            position = device.get('position')
-
-            # Get u_height from device-types lookup (more reliable than nested device_type)
-            device_type_id = device.get('device_type', {}).get('id') if device.get('device_type') else None
-            device_u_height = device_type_heights.get(device_type_id, 4) if device_type_id else 4
+            # Get position data from NetBox lookup
+            netbox_info = netbox_positions.get(hostname, {})
+            position = netbox_info.get('position')
+            u_height = netbox_info.get('u_height', 4)
 
             device_info = {
-                "hostname": device_name,
+                "hostname": hostname,
                 "position": position,
-                "u_height": device_u_height,
+                "u_height": u_height,
                 "owner_group": owner_group,
                 "gpu_type": gpu_type,
-                "tenant": tenant_name,
+                "tenant": tenant,
                 "status": status,
                 "nvlinks": nvlinks,
-                "netbox_id": device.get('id'),
-                "netbox_url": device.get('url')
+                "netbox_id": netbox_info.get('netbox_id') or host.get('netbox_device_id'),
+                "netbox_url": netbox_info.get('netbox_url') or host.get('netbox_url'),
+                "vm_count": host.get('vm_count', 0),
+                "gpu_used": host.get('gpu_used', 0),
+                "gpu_capacity": host.get('gpu_capacity', 8)
             }
 
             # Update summary counters
             summary["totals"]["total_devices"] += 1
-            summary["by_owner"][owner_group]["total"] += 1
 
-            if status == 'decommissioning':
-                summary["by_owner"][owner_group]["decommissioning"] += 1
-                summary["totals"]["for_sale"] += 1
-            else:
-                summary["by_owner"][owner_group]["active"] += 1
+            if owner_group in summary["by_owner"]:
+                summary["by_owner"][owner_group]["total"] += 1
+                if status == 'decommissioning':
+                    summary["by_owner"][owner_group]["decommissioning"] += 1
+                    summary["totals"]["for_sale"] += 1
+                else:
+                    summary["by_owner"][owner_group]["active"] += 1
 
-            # GPU type breakdown (only for NexGen devices)
+            # GPU type breakdown
             if gpu_type:
                 if gpu_type not in summary["by_gpu_type"]:
                     summary["by_gpu_type"][gpu_type] = {"nexgen": 0, "investors": 0, "decommissioning": 0}
@@ -349,33 +311,24 @@ def get_rack_visualization_data(site_filter=None, gpu_type_filter=None, owner_fi
                 else:
                     summary["by_gpu_type"][gpu_type]["investors"] += 1
 
-            # Organize by rack
-            if rack_data and rack_data.get('id') and position:
-                rack_id = rack_data['id']
-                if rack_id not in rack_devices:
-                    rack_devices[rack_id] = []
-                rack_devices[rack_id].append(device_info)
+            # Organize by rack name (from parallel agents data)
+            if rack_name and rack_name != 'Unknown' and position:
+                if rack_name not in rack_devices:
+                    rack_devices[rack_name] = {'site': site, 'devices': []}
+                rack_devices[rack_name]['devices'].append(device_info)
             else:
                 unpositioned_devices.append(device_info)
 
-        # Step 4: Build rack visualization structure
+        # Step 5: Build rack visualization structure
         racks_output = []
-        for rack in racks_list:
-            rack_id = rack.get('id')
-            devices_in_rack = rack_devices.get(rack_id, [])
-
-            # Skip empty racks unless they have devices
-            if not devices_in_rack:
-                continue
-
-            site_info = rack.get('site', {})
-            site_name = site_info.get('name', 'Unknown') if site_info else 'Unknown'
+        for rack_name, rack_info in rack_devices.items():
+            devices_in_rack = rack_info['devices']
 
             racks_output.append({
-                "id": rack_id,
-                "name": rack.get('name', f'Rack-{rack_id}'),
-                "site": site_name,
-                "u_height": rack.get('u_height', 42),
+                "id": rack_name,
+                "name": rack_name,
+                "site": rack_info['site'],
+                "u_height": 42,  # Default rack height
                 "devices": sorted(devices_in_rack, key=lambda d: d['position'] or 0, reverse=True)
             })
 
