@@ -170,15 +170,28 @@ def get_rack_visualization_data(site_filter=None, gpu_type_filter=None, owner_fi
         racks_url = f"{NETBOX_URL}/api/dcim/racks/"
         racks_params = {'limit': 500}
         if site_filter:
-            racks_params['site'] = site_filter
+            # NetBox API uses site__name for filtering by site name
+            racks_params['site__name'] = site_filter
 
+        print(f"📦 Fetching racks from NetBox with params: {racks_params}")
         racks_response = requests.get(racks_url, headers=headers, params=racks_params, timeout=30)
         if racks_response.status_code != 200:
-            print(f"❌ NetBox racks API error: {racks_response.status_code}")
-            return {"racks": [], "summary": {}, "error": f"API error: {racks_response.status_code}"}
+            print(f"❌ NetBox racks API error: {racks_response.status_code} - {racks_response.text[:200]}")
+            # Try without site filter as fallback
+            if site_filter:
+                print("⚠️ Retrying without site filter...")
+                racks_params = {'limit': 500}
+                racks_response = requests.get(racks_url, headers=headers, params=racks_params, timeout=30)
+                if racks_response.status_code != 200:
+                    return {"racks": [], "summary": {}, "error": f"API error: {racks_response.status_code}"}
 
         racks_data = racks_response.json()
         racks_list = racks_data.get('results', [])
+
+        # If site filter was provided, filter racks by site name client-side as backup
+        if site_filter and racks_list:
+            racks_list = [r for r in racks_list if r.get('site', {}).get('name') == site_filter]
+
         print(f"📦 Fetched {len(racks_list)} racks from NetBox")
 
         # Step 2: Fetch all devices with rack positions
@@ -188,16 +201,26 @@ def get_rack_visualization_data(site_filter=None, gpu_type_filter=None, owner_fi
             'has_primary_ip': 'true',  # Only devices with IPs (actual servers)
         }
         if site_filter:
-            devices_params['site'] = site_filter
+            # NetBox API uses site__name for filtering by site name
+            devices_params['site__name'] = site_filter
 
         all_devices = []
         offset = 0
+        print(f"🖥️ Fetching devices from NetBox with params: {devices_params}")
         while True:
             devices_params['offset'] = offset
             devices_response = requests.get(devices_url, headers=headers, params=devices_params, timeout=30)
             if devices_response.status_code != 200:
-                print(f"❌ NetBox devices API error: {devices_response.status_code}")
-                break
+                print(f"❌ NetBox devices API error: {devices_response.status_code} - {devices_response.text[:200]}")
+                # Try without site filter as fallback
+                if site_filter and offset == 0:
+                    print("⚠️ Retrying devices without site filter...")
+                    devices_params.pop('site__name', None)
+                    devices_response = requests.get(devices_url, headers=headers, params=devices_params, timeout=30)
+                    if devices_response.status_code != 200:
+                        break
+                else:
+                    break
 
             devices_data = devices_response.json()
             devices_batch = devices_data.get('results', [])
@@ -206,6 +229,13 @@ def get_rack_visualization_data(site_filter=None, gpu_type_filter=None, owner_fi
             if len(devices_batch) < 1000:
                 break
             offset += 1000
+
+        # If site filter was provided but API didn't support it, filter client-side
+        if site_filter and all_devices:
+            original_count = len(all_devices)
+            all_devices = [d for d in all_devices if d.get('site', {}).get('name') == site_filter]
+            if len(all_devices) != original_count:
+                print(f"🔍 Filtered devices by site '{site_filter}': {original_count} -> {len(all_devices)}")
 
         print(f"🖥️ Fetched {len(all_devices)} devices from NetBox")
 
