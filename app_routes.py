@@ -1938,15 +1938,110 @@ power_state:
         """Get parallel cache statistics"""
         try:
             from modules.parallel_agents import get_parallel_cache_stats
-            
+
             stats = get_parallel_cache_stats()
             return jsonify({
                 'success': True,
                 'parallel_cache': stats
             })
-            
+
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
+
+    # =============================================================================
+    # RACK VISUALIZATION ENDPOINTS
+    # =============================================================================
+
+    @app.route('/api/rack-visualization')
+    def get_rack_visualization():
+        """
+        Get rack visualization data for the Rack View feature.
+
+        Query params:
+        - site: Filter by datacenter site (e.g., 'CA1')
+        - gpu_type: Filter by GPU type (e.g., 'H100', 'A100')
+        - owner: Filter by owner ('Nexgen Cloud' or 'Investors')
+
+        Returns rack positioning data with devices and summary statistics.
+        """
+        try:
+            from modules.netbox_operations import get_rack_visualization_data
+
+            # Get filter parameters
+            site_filter = request.args.get('site', None)
+            gpu_type_filter = request.args.get('gpu_type', None)
+            owner_filter = request.args.get('owner', None)
+
+            print(f"🏢 Rack visualization request: site={site_filter}, gpu_type={gpu_type_filter}, owner={owner_filter}")
+
+            start_time = time.time()
+
+            # Fetch rack data from NetBox
+            rack_data = get_rack_visualization_data(
+                site_filter=site_filter,
+                gpu_type_filter=gpu_type_filter,
+                owner_filter=owner_filter
+            )
+
+            total_time = time.time() - start_time
+
+            # Add performance stats
+            rack_data['performance'] = {
+                'query_time': round(total_time, 2),
+                'rack_count': len(rack_data.get('racks', [])),
+                'device_count': rack_data.get('summary', {}).get('totals', {}).get('total_devices', 0)
+            }
+
+            print(f"✅ Rack visualization complete: {rack_data['performance']['rack_count']} racks, "
+                  f"{rack_data['performance']['device_count']} devices in {total_time:.2f}s")
+
+            return jsonify(rack_data)
+
+        except Exception as e:
+            print(f"❌ Error in rack visualization: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'error': str(e), 'racks': [], 'summary': {}}), 500
+
+    @app.route('/api/rack-visualization/sites')
+    def get_rack_sites():
+        """Get available datacenter sites for the rack view filter"""
+        try:
+            import os
+
+            NETBOX_URL = os.getenv('NETBOX_URL')
+            NETBOX_API_KEY = os.getenv('NETBOX_API_KEY')
+
+            if not NETBOX_URL or not NETBOX_API_KEY:
+                return jsonify({'sites': [], 'error': 'NetBox not configured'})
+
+            headers = {
+                'Authorization': f'Token {NETBOX_API_KEY}',
+                'Content-Type': 'application/json'
+            }
+
+            # Fetch sites from NetBox
+            sites_url = f"{NETBOX_URL}/api/dcim/sites/"
+            response = requests.get(sites_url, headers=headers, params={'limit': 100}, timeout=10)
+
+            if response.status_code != 200:
+                return jsonify({'sites': [], 'error': f'API error: {response.status_code}'})
+
+            sites_data = response.json()
+            sites = [
+                {
+                    'name': site.get('name'),
+                    'slug': site.get('slug'),
+                    'id': site.get('id')
+                }
+                for site in sites_data.get('results', [])
+            ]
+
+            return jsonify({'sites': sites})
+
+        except Exception as e:
+            print(f"❌ Error fetching sites: {e}")
+            return jsonify({'sites': [], 'error': str(e)}), 500
 
     # Debug: Log all registered routes at the end
     print("\n🔥 DEBUG: All routes registered in register_routes():")

@@ -56,6 +56,23 @@
                             </div>
                         </div>
 
+                        <!-- View Toggle -->
+                        <div class="navbar-nav me-4">
+                            <div class="nav-item">
+                                <label class="text-light small mb-1 d-block">View</label>
+                                <div class="view-toggle btn-group" role="group">
+                                    <button type="button" class="btn btn-outline-light btn-sm active" id="aggregateViewBtn"
+                                            onclick="toggleRackView(false)" title="Pool-based column view">
+                                        <i class="fas fa-columns"></i> Aggregate
+                                    </button>
+                                    <button type="button" class="btn btn-outline-light btn-sm" id="rackViewBtn"
+                                            onclick="toggleRackView(true)" title="Physical rack elevation view">
+                                        <i class="fas fa-th"></i> Rack
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Host Search -->
                         <div class="navbar-nav flex-grow-1 me-4">
                             <div class="nav-item w-100">
@@ -551,7 +568,106 @@
                                     </div>
                                 </div>
                             </div>
-                            
+
+                            <!-- Rack View Container (Hidden by default) -->
+                            <div id="rackViewContainer" style="display: none;">
+                                <!-- Loading State -->
+                                <div id="rackViewLoader" style="display: none;">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <p class="mt-3 text-muted">Loading rack data from NetBox...</p>
+                                </div>
+
+                                <!-- Rack View Content -->
+                                <div id="rackViewContent">
+                                    <!-- Summary Panel -->
+                                    <div id="rackViewSummary" class="mb-4">
+                                        <!-- Summary will be rendered by JavaScript -->
+                                    </div>
+
+                                    <!-- Filters -->
+                                    <div id="rackFilters" class="mb-4">
+                                        <div class="row align-items-end">
+                                            <div class="col-md-3">
+                                                <label class="form-label">Site</label>
+                                                <select id="rackSiteFilter" class="form-select form-select-sm">
+                                                    <option value="">All Sites</option>
+                                                    <option value="CA1" selected>CA1</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label">GPU Type</label>
+                                                <select id="rackGpuFilter" class="form-select form-select-sm">
+                                                    <option value="">All GPU Types</option>
+                                                    <option value="H100">H100</option>
+                                                    <option value="H200">H200</option>
+                                                    <option value="A100">A100</option>
+                                                    <option value="A6000">A6000</option>
+                                                    <option value="L40S">L40S</option>
+                                                    <option value="L40">L40</option>
+                                                    <option value="4090">4090</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">Show Owners</label>
+                                                <div class="d-flex gap-3">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" id="rackShowNexgen" checked>
+                                                        <label class="form-check-label" for="rackShowNexgen">
+                                                            <span class="badge bg-success">NexGen</span>
+                                                        </label>
+                                                    </div>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" id="rackShowInvestors" checked>
+                                                        <label class="form-check-label" for="rackShowInvestors">
+                                                            <span class="badge bg-secondary">Investors</span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-2 text-end">
+                                                <button class="btn btn-sm btn-outline-primary" onclick="rackView.loadData()" title="Refresh rack data">
+                                                    <i class="fas fa-sync-alt"></i> Refresh
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Rack Grid -->
+                                    <div id="rackGrid">
+                                        <div class="text-center text-muted py-5">
+                                            <i class="fas fa-server fa-3x mb-3"></i>
+                                            <h5>Select filters above to load rack view</h5>
+                                            <p>Click "Rack" view toggle to visualize physical rack positions.</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Legend -->
+                                <div class="mt-4 p-3 bg-white rounded shadow-sm">
+                                    <h6 class="mb-3"><i class="fas fa-info-circle"></i> Legend</h6>
+                                    <div class="d-flex flex-wrap gap-4">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span style="display: inline-block; width: 20px; height: 16px; background: linear-gradient(135deg, #00b894, #00a085); border-radius: 3px;"></span>
+                                            <span class="small">NexGen Active</span>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span style="display: inline-block; width: 20px; height: 16px; background: repeating-linear-gradient(45deg, #00b894, #00b894 4px, #e17055 4px, #e17055 8px); border-radius: 3px;"></span>
+                                            <span class="small">NexGen For Sale</span>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span style="display: inline-block; width: 20px; height: 16px; background: linear-gradient(135deg, #636e72, #4a5459); opacity: 0.7; border-radius: 3px;"></span>
+                                            <span class="small">Investor Owned</span>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <i class="fas fa-link text-info"></i>
+                                            <span class="small">NVLinks Enabled</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                         </div>
 
                         <!-- Pending Operations Tab -->
@@ -1251,7 +1367,10 @@
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
     <script src="{{ url_for('static', filename='customer-view.js') }}"></script>
-    
+
+    <!-- Rack View Module -->
+    <script src="{{ url_for('static', filename='rack-view.js') }}"></script>
+
     <!-- Enhanced Progress Modal for Data Refresh -->
     <div id="refreshProgressModal" class="modal fade" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
         <div class="modal-dialog modal-lg">
