@@ -313,9 +313,19 @@ class RackView {
         const bottomPx = (position - 1) * this.U_HEIGHT_PX;
         const heightPx = uHeight * this.U_HEIGHT_PX;
 
-        // Determine device class based on owner and status
+        // GPU usage data
+        const gpuUsed = device.gpu_used || 0;
+        const gpuCapacity = device.gpu_capacity || 8;
+        const gpuUsageRatio = device.gpu_usage_ratio || `${gpuUsed}/${gpuCapacity}`;
+        const isInUse = gpuUsed > 0;
+
+        // Determine device class based on owner, status, and GPU usage
         let deviceClass = 'rack-device';
-        if (device.owner_group === 'Nexgen Cloud') {
+
+        // Check if device is in use (GPUs allocated) - takes priority for coloring
+        if (isInUse) {
+            deviceClass += ' device-in-use';
+        } else if (device.owner_group === 'Nexgen Cloud') {
             deviceClass += ' device-nexgen';
             if (device.status === 'decommissioning') {
                 deviceClass += ' decommissioning';
@@ -344,9 +354,13 @@ class RackView {
                  data-gpu="${device.gpu_type || 'Unknown'}"
                  data-status="${device.status}"
                  data-tenant="${device.tenant}"
-                 data-nvlinks="${device.nvlinks}">
+                 data-nvlinks="${device.nvlinks}"
+                 data-gpu-used="${gpuUsed}"
+                 data-gpu-capacity="${gpuCapacity}"
+                 data-gpu-ratio="${gpuUsageRatio}">
                 <span class="device-name">${displayName}</span>
                 ${device.nvlinks ? '<span class="nvlink-indicator" title="NVLinks enabled"><i class="fas fa-link"></i></span>' : ''}
+                ${isInUse ? '<span class="in-use-indicator" title="GPUs in use"><i class="fas fa-circle"></i></span>' : ''}
             </div>
         `;
     }
@@ -387,6 +401,9 @@ class RackView {
         const status = deviceEl.dataset.status;
         const tenant = deviceEl.dataset.tenant;
         const nvlinks = deviceEl.dataset.nvlinks === 'true';
+        const gpuUsed = parseInt(deviceEl.dataset.gpuUsed) || 0;
+        const gpuCapacity = parseInt(deviceEl.dataset.gpuCapacity) || 8;
+        const gpuRatio = deviceEl.dataset.gpuRatio || `${gpuUsed}/${gpuCapacity}`;
 
         const ownerBadge = owner === 'Nexgen Cloud'
             ? '<span class="badge bg-success">NexGen</span>'
@@ -399,6 +416,11 @@ class RackView {
         const nvlinkBadge = nvlinks
             ? '<span class="badge bg-info">NVLinks</span>'
             : '';
+
+        // GPU usage badge - yellow/warning if in use, green if available
+        const gpuUsageBadge = gpuUsed > 0
+            ? `<span class="badge bg-warning text-dark">${gpuRatio} In Use</span>`
+            : `<span class="badge bg-success">${gpuRatio} Available</span>`;
 
         let tooltip = document.getElementById('rackDeviceTooltip');
         if (!tooltip) {
@@ -426,6 +448,10 @@ class RackView {
                 <div class="tooltip-row">
                     <span class="tooltip-label">GPU Type:</span>
                     <span class="tooltip-value">${gpu}</span>
+                </div>
+                <div class="tooltip-row">
+                    <span class="tooltip-label">GPU Usage:</span>
+                    <span class="tooltip-value">${gpuUsageBadge}</span>
                 </div>
                 <div class="tooltip-row">
                     <span class="tooltip-label">Status:</span>

@@ -3514,6 +3514,28 @@ body {
     background: linear-gradient(135deg, #6c757d, #636e72);
 }
 
+/* In-Use Devices - Yellow (GPUs allocated, not available) */
+.device-in-use {
+    background: linear-gradient(135deg, #f39c12, #d68910);
+    border-color: #f1c40f;
+    opacity: 1;
+}
+
+.device-in-use:hover {
+    background: linear-gradient(135deg, #f1c40f, #f39c12);
+}
+
+.device-in-use .device-name {
+    color: #2c3e50;
+}
+
+/* In-use indicator dot */
+.in-use-indicator {
+    font-size: 6px;
+    color: #2c3e50;
+    margin-left: 2px;
+}
+
 /* Hidden Devices (filtered out) */
 .device-hidden {
     display: none !important;
