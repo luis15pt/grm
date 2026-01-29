@@ -169,17 +169,20 @@ class RackView {
         const byGpu = summary.by_gpu_type || {};
         const totals = summary.totals || {};
 
-        // Calculate availability (Empty vs In Use) from rack data
+        // Calculate availability (Empty vs In Use) from rack data - NexGen only
         let emptyCount = 0;
         let inUseCount = 0;
         if (this.rackData.racks) {
             this.rackData.racks.forEach(rack => {
                 if (rack.devices) {
                     rack.devices.forEach(device => {
-                        if ((device.gpu_used || 0) > 0) {
-                            inUseCount++;
-                        } else {
-                            emptyCount++;
+                        // Only count NexGen devices for availability
+                        if (device.owner_group === 'Nexgen Cloud') {
+                            if ((device.gpu_used || 0) > 0) {
+                                inUseCount++;
+                            } else {
+                                emptyCount++;
+                            }
                         }
                     });
                 }
@@ -220,7 +223,7 @@ class RackView {
                 </div>
                 <div class="col-md-3">
                     <div class="summary-card">
-                        <h6 class="text-muted mb-2">AVAILABILITY</h6>
+                        <h6 class="text-muted mb-2">NEXGEN AVAILABILITY</h6>
                         <div class="d-flex justify-content-between mb-1">
                             <span class="text-success"><i class="fas fa-server"></i> Empty:</span>
                             <strong>${emptyCount}</strong>
@@ -352,16 +355,18 @@ class RackView {
         // Determine device class based on owner, status, and GPU usage
         let deviceClass = 'rack-device';
 
-        // Check if device is in use (GPUs allocated) - takes priority for coloring
-        if (isInUse) {
-            deviceClass += ' device-in-use';
-        } else if (device.owner_group === 'Nexgen Cloud') {
-            deviceClass += ' device-nexgen';
-            if (device.status === 'decommissioning') {
-                deviceClass += ' decommissioning';
-            }
-        } else {
+        // Investor devices are always grey (we don't care about their GPU usage)
+        if (device.owner_group !== 'Nexgen Cloud') {
             deviceClass += ' device-investor';
+        } else {
+            // NexGen devices: yellow if in use, green if available
+            if (isInUse) {
+                deviceClass += ' device-in-use';
+            } else if (device.status === 'decommissioning') {
+                deviceClass += ' device-nexgen decommissioning';
+            } else {
+                deviceClass += ' device-nexgen';
+            }
         }
 
         // Check visibility based on filters
