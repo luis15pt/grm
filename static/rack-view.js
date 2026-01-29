@@ -351,19 +351,32 @@ class RackView {
         const gpuCapacity = device.gpu_capacity || 8;
         const gpuUsageRatio = device.gpu_usage_ratio || `${gpuUsed}/${gpuCapacity}`;
         const isInUse = gpuUsed > 0;
+        const usagePercent = gpuCapacity > 0 ? (gpuUsed / gpuCapacity) : 0;
 
         // Determine device class based on owner, status, and GPU usage
         let deviceClass = 'rack-device';
+        let inlineStyle = `bottom: ${bottomPx}px; height: ${heightPx}px;`;
 
-        // Investor devices are always grey (we don't care about their GPU usage)
-        if (device.owner_group !== 'Nexgen Cloud') {
-            deviceClass += ' device-investor';
+        // Owner label
+        const ownerLabel = device.owner_group === 'Nexgen Cloud' ? 'NGC' : 'INV';
+        const isNexgen = device.owner_group === 'Nexgen Cloud';
+
+        if (!isNexgen) {
+            // Investor devices: blue if empty (0/8), grey if in use
+            if (gpuUsed === 0) {
+                deviceClass += ' device-investor-empty';
+            } else {
+                deviceClass += ' device-investor';
+            }
         } else {
-            // NexGen devices: yellow if in use, green if available
-            if (isInUse) {
-                deviceClass += ' device-in-use';
-            } else if (device.status === 'decommissioning') {
+            // NexGen devices: gradient from yellow (low usage) to red (full usage)
+            if (device.status === 'decommissioning') {
                 deviceClass += ' device-nexgen decommissioning';
+            } else if (isInUse) {
+                // Calculate color gradient: yellow (low) -> orange (mid) -> red (full)
+                const bgColor = this.getUsageColor(usagePercent);
+                inlineStyle += ` background: ${bgColor};`;
+                deviceClass += ' device-in-use-gradient';
             } else {
                 deviceClass += ' device-nexgen';
             }
@@ -380,9 +393,12 @@ class RackView {
         // Shorten hostname for display
         const displayName = this.shortenHostname(device.hostname);
 
+        // Status indicator
+        const statusIcon = device.status === 'decommissioning' ? '<i class="fas fa-tag"></i>' : '';
+
         return `
             <div class="${deviceClass}"
-                 style="bottom: ${bottomPx}px; height: ${heightPx}px;"
+                 style="${inlineStyle}"
                  data-hostname="${device.hostname}"
                  data-position="${position}"
                  data-owner="${device.owner_group}"
@@ -393,11 +409,39 @@ class RackView {
                  data-gpu-used="${gpuUsed}"
                  data-gpu-capacity="${gpuCapacity}"
                  data-gpu-ratio="${gpuUsageRatio}">
-                <span class="device-name">${displayName}</span>
-                ${device.nvlinks ? '<span class="nvlink-indicator" title="NVLinks enabled"><i class="fas fa-link"></i></span>' : ''}
-                ${isInUse ? '<span class="in-use-indicator" title="GPUs in use"><i class="fas fa-circle"></i></span>' : ''}
+                <div class="device-info">
+                    <span class="device-name">${displayName}</span>
+                    <span class="device-owner-badge">${ownerLabel}</span>
+                </div>
+                <div class="device-stats">
+                    <span class="device-gpu-usage">${gpuUsageRatio}</span>
+                    ${device.nvlinks ? '<i class="fas fa-link nvlink-icon"></i>' : ''}
+                    ${statusIcon}
+                </div>
             </div>
         `;
+    }
+
+    /**
+     * Calculate color based on GPU usage percentage (yellow -> orange -> red)
+     */
+    getUsageColor(percent) {
+        // percent: 0 = not used (shouldn't reach here), 0.125 = 1/8, 1 = 8/8
+        // Color: light yellow (#fff3cd) -> orange (#fd7e14) -> red (#dc3545)
+
+        if (percent <= 0.25) {
+            // Light yellow to yellow
+            return `linear-gradient(135deg, #fff3cd, #ffc107)`;
+        } else if (percent <= 0.5) {
+            // Yellow to orange
+            return `linear-gradient(135deg, #ffc107, #fd7e14)`;
+        } else if (percent <= 0.75) {
+            // Orange to dark orange
+            return `linear-gradient(135deg, #fd7e14, #e55100)`;
+        } else {
+            // Dark orange to red
+            return `linear-gradient(135deg, #e55100, #dc3545)`;
+        }
     }
 
     /**

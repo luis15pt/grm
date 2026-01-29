@@ -3444,9 +3444,9 @@ body {
     left: 2px;
     right: 2px;
     border-radius: 3px;
-    padding: 2px 4px;
+    padding: 1px 3px;
     display: flex;
-    align-items: center;
+    flex-direction: column;
     justify-content: space-between;
     overflow: hidden;
     cursor: pointer;
@@ -3502,7 +3502,7 @@ body {
     100% { background-position: 22.6px 0; }
 }
 
-/* Investor Devices - Grey/Transparent */
+/* Investor Devices - Grey (in use) */
 .device-investor {
     background: linear-gradient(135deg, #636e72, #4a5459);
     opacity: 0.7;
@@ -3514,26 +3514,76 @@ body {
     background: linear-gradient(135deg, #6c757d, #636e72);
 }
 
-/* In-Use Devices - Yellow (GPUs allocated, not available) */
-.device-in-use {
-    background: linear-gradient(135deg, #f39c12, #d68910);
-    border-color: #f1c40f;
+/* Investor Devices - Blue (empty/available) */
+.device-investor-empty {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    border-color: #5dade2;
+    opacity: 0.85;
+}
+
+.device-investor-empty:hover {
+    opacity: 1;
+    background: linear-gradient(135deg, #5dade2, #3498db);
+}
+
+.device-investor-empty .device-name,
+.device-investor-empty .device-owner-badge,
+.device-investor-empty .device-gpu-usage {
+    color: white;
+}
+
+/* In-Use NexGen Devices with gradient (color set inline via JS) */
+.device-in-use-gradient {
+    border-color: #e74c3c;
     opacity: 1;
 }
 
-.device-in-use:hover {
-    background: linear-gradient(135deg, #f1c40f, #f39c12);
+.device-in-use-gradient:hover {
+    filter: brightness(1.1);
 }
 
-.device-in-use .device-name {
+.device-in-use-gradient .device-name,
+.device-in-use-gradient .device-owner-badge,
+.device-in-use-gradient .device-gpu-usage {
     color: #2c3e50;
+    text-shadow: 0 0 2px rgba(255,255,255,0.5);
 }
 
-/* In-use indicator dot */
-.in-use-indicator {
+/* Device card layout - show info without hover */
+.device-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    line-height: 1;
+}
+
+.device-stats {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 7px;
+    line-height: 1;
+    gap: 2px;
+}
+
+.device-owner-badge {
     font-size: 6px;
-    color: #2c3e50;
-    margin-left: 2px;
+    font-weight: 700;
+    padding: 0 2px;
+    border-radius: 2px;
+    background: rgba(0,0,0,0.2);
+    color: white;
+}
+
+.device-gpu-usage {
+    font-size: 7px;
+    font-weight: 600;
+    color: white;
+}
+
+.nvlink-icon {
+    font-size: 6px;
+    color: #17a2b8;
 }
 
 /* Hidden Devices (filtered out) */
