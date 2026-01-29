@@ -3361,7 +3361,7 @@ body {
 
 /* Individual Rack Unit */
 .rack-unit {
-    width: 220px;
+    width: 160px;
     background: #2d3436;
     border-radius: 6px;
     overflow: hidden;
@@ -3674,19 +3674,9 @@ body {
 }
 
 /* Responsive Adjustments */
-@media (max-width: 1400px) {
-    .rack-unit {
-        width: 200px;
-    }
-
-    .device-name {
-        font-size: 10px;
-    }
-}
-
 @media (max-width: 1200px) {
     .rack-unit {
-        width: 180px;
+        width: 140px;
     }
 
     .device-name {
@@ -3700,7 +3690,7 @@ body {
     }
 
     .rack-unit {
-        width: 160px;
+        width: 120px;
     }
 
     .u-label {

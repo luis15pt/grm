@@ -7,7 +7,7 @@
 class RackView {
     constructor() {
         this.U_HEIGHT_PX = 18;  // Pixels per rack unit
-        this.RACK_WIDTH = 220;  // Width of each rack in pixels
+        this.RACK_WIDTH = 160;  // Width of each rack in pixels
         this.rackData = null;
         this.sites = [];
         this.filters = {
