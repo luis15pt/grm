@@ -194,7 +194,22 @@ def get_rack_visualization_data(site_filter=None, gpu_type_filter=None, owner_fi
 
         print(f"📦 Fetched {len(racks_list)} racks from NetBox")
 
-        # Step 2: Fetch all devices with rack positions
+        # Step 2: Fetch all device-types to get u_height for each device type
+        device_types_url = f"{NETBOX_URL}/api/dcim/device-types/"
+        device_types_params = {'limit': 500}
+        device_type_heights = {}  # device_type_id -> u_height
+
+        print(f"📐 Fetching device-types from NetBox for u_height data...")
+        device_types_response = requests.get(device_types_url, headers=headers, params=device_types_params, timeout=30)
+        if device_types_response.status_code == 200:
+            device_types_data = device_types_response.json()
+            for dt in device_types_data.get('results', []):
+                device_type_heights[dt.get('id')] = dt.get('u_height', 4)
+            print(f"📐 Loaded {len(device_type_heights)} device-types with u_height data")
+        else:
+            print(f"⚠️ Could not fetch device-types: {device_types_response.status_code} - using default u_height=4")
+
+        # Step 3: Fetch all devices with rack positions
         devices_url = f"{NETBOX_URL}/api/dcim/devices/"
         devices_params = {
             'limit': 1000,
@@ -294,7 +309,10 @@ def get_rack_visualization_data(site_filter=None, gpu_type_filter=None, owner_fi
             # Get rack and position info
             rack_data = device.get('rack', {})
             position = device.get('position')
-            device_u_height = device.get('device_type', {}).get('u_height', 4) if device.get('device_type') else 4
+
+            # Get u_height from device-types lookup (more reliable than nested device_type)
+            device_type_id = device.get('device_type', {}).get('id') if device.get('device_type') else None
+            device_u_height = device_type_heights.get(device_type_id, 4) if device_type_id else 4
 
             device_info = {
                 "hostname": device_name,
