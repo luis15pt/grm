@@ -3361,7 +3361,7 @@ body {
 
 /* Individual Rack Unit */
 .rack-unit {
-    width: 160px;
+    width: 220px;
     background: #2d3436;
     border-radius: 6px;
     overflow: hidden;
@@ -3461,7 +3461,7 @@ body {
 }
 
 .device-name {
-    font-size: 9px;
+    font-size: 11px;
     font-weight: 600;
     color: white;
     text-overflow: ellipsis;
@@ -3561,28 +3561,28 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 7px;
+    font-size: 10px;
     line-height: 1;
-    gap: 2px;
+    gap: 4px;
 }
 
 .device-owner-badge {
-    font-size: 6px;
+    font-size: 9px;
     font-weight: 700;
-    padding: 0 2px;
+    padding: 1px 3px;
     border-radius: 2px;
     background: rgba(0,0,0,0.2);
     color: white;
 }
 
 .device-gpu-usage {
-    font-size: 7px;
+    font-size: 10px;
     font-weight: 600;
     color: white;
 }
 
 .nvlink-icon {
-    font-size: 6px;
+    font-size: 10px;
     color: #17a2b8;
 }
 
@@ -3674,13 +3674,23 @@ body {
 }
 
 /* Responsive Adjustments */
-@media (max-width: 1200px) {
+@media (max-width: 1400px) {
     .rack-unit {
-        width: 140px;
+        width: 200px;
     }
 
     .device-name {
-        font-size: 8px;
+        font-size: 10px;
+    }
+}
+
+@media (max-width: 1200px) {
+    .rack-unit {
+        width: 180px;
+    }
+
+    .device-name {
+        font-size: 9px;
     }
 }
 
@@ -3690,7 +3700,7 @@ body {
     }
 
     .rack-unit {
-        width: 120px;
+        width: 160px;
     }
 
     .u-label {
@@ -3698,7 +3708,7 @@ body {
     }
 
     .device-name {
-        font-size: 7px;
+        font-size: 8px;
     }
 }
 

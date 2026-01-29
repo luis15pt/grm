@@ -7,7 +7,7 @@
 class RackView {
     constructor() {
         this.U_HEIGHT_PX = 18;  // Pixels per rack unit
-        this.RACK_WIDTH = 160;  // Width of each rack in pixels
+        this.RACK_WIDTH = 220;  // Width of each rack in pixels
         this.rackData = null;
         this.sites = [];
         this.filters = {
@@ -390,8 +390,8 @@ class RackView {
             deviceClass += ' device-hidden';
         }
 
-        // Shorten hostname for display
-        const displayName = this.shortenHostname(device.hostname);
+        // Use full hostname
+        const displayName = device.hostname || '?';
 
         // Status indicator
         const statusIcon = device.status === 'decommissioning' ? '<i class="fas fa-tag"></i>' : '';
