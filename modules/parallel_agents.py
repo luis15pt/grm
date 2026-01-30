@@ -6,6 +6,7 @@ import os
 import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from .openstack_operations import get_openstack_connection
+from .netbox_utils import build_netbox_headers, get_cache_key_suffix
 
 # Global cache for parallel agent results
 _parallel_cache = {}
@@ -14,12 +15,17 @@ _cache_lock = threading.Lock()
 _active_requests = {}  # Track active requests to prevent duplicates
 PARALLEL_CACHE_TTL = 600  # 10 minutes - production cache TTL
 
-def get_all_data_parallel():
+def get_all_data_parallel(branch=None):
     """
     Master function that runs all 4 agents in parallel and returns organized results
     Thread-safe with locking to prevent duplicate requests
+
+    Args:
+        branch: Optional NetBox branch schema ID (uses global default if not provided)
     """
-    cache_key = "all_parallel_data"
+    # Use branch-aware cache key
+    cache_suffix = get_cache_key_suffix(branch)
+    cache_key = f"all_parallel_data{cache_suffix}"
     
     # First check cache without lock (fast path)
     if cache_key in _parallel_cache and cache_key in _cache_timestamps:
@@ -59,10 +65,10 @@ def get_all_data_parallel():
         
         # Run all agents in parallel
         with ThreadPoolExecutor(max_workers=5) as executor:
-            # Submit all agent tasks
+            # Submit all agent tasks (pass branch to netbox_agent)
             futures = {
-                'netbox': executor.submit(netbox_agent),
-                'aggregates': executor.submit(aggregate_agent), 
+                'netbox': executor.submit(netbox_agent, branch),
+                'aggregates': executor.submit(aggregate_agent),
                 'vm_counts': executor.submit(vm_count_agent),
                 'gpu_info': executor.submit(gpu_info_agent),
                 'compute_services': executor.submit(compute_service_agent)
@@ -112,29 +118,30 @@ def get_all_data_parallel():
         with _cache_lock:
             _active_requests.pop(cache_key, None)
 
-def netbox_agent():
-    """Agent 1: Get ALL NetBox device data in bulk"""
+def netbox_agent(branch=None):
+    """Agent 1: Get ALL NetBox device data in bulk
+
+    Args:
+        branch: Optional NetBox branch schema ID (uses global default if not provided)
+    """
     print("📡 NetBox Agent: Fetching all device data...")
     start_time = time.time()
-    
+
     try:
         # Import NetBox configuration
         import os
         NETBOX_URL = os.getenv('NETBOX_URL')
         NETBOX_API_KEY = os.getenv('NETBOX_API_KEY')
-        
+
         if not NETBOX_URL or not NETBOX_API_KEY:
             print("⚠️ NetBox not configured - using defaults")
             return {}
-        
+
         import requests
-        
+
         # Get ALL devices in a single request (or paginated if needed)
         url = f"{NETBOX_URL}/api/dcim/devices/"
-        headers = {
-            'Authorization': f'Token {NETBOX_API_KEY}',
-            'Content-Type': 'application/json'
-        }
+        headers = build_netbox_headers(branch)
         
         all_devices = []
         page = 1
@@ -1539,30 +1546,62 @@ def get_host_gpu_info_direct(hostname):
             'gpu_usage_ratio': "0/8"
         }
 
-def clear_parallel_cache():
-    """Clear the parallel agent cache"""
-    global _parallel_cache, _cache_timestamps
-    cleared_count = len(_parallel_cache)
-    _parallel_cache.clear()
-    _cache_timestamps.clear()
-    print(f"🧹 Cleared {cleared_count} items from parallel cache")
-    return cleared_count
+def clear_parallel_cache(branch=None):
+    """Clear the parallel agent cache
 
-def force_cache_refresh():
-    """Force immediate cache refresh by clearing and re-fetching"""
+    Args:
+        branch: Optional branch to clear. If None, clears all branch caches.
+    """
+    global _parallel_cache, _cache_timestamps
+
+    if branch is None:
+        # Clear all caches
+        cleared_count = len(_parallel_cache)
+        _parallel_cache.clear()
+        _cache_timestamps.clear()
+        print(f"🧹 Cleared {cleared_count} items from parallel cache")
+        return cleared_count
+    else:
+        # Clear specific branch cache
+        cache_suffix = get_cache_key_suffix(branch)
+        cache_key = f"all_parallel_data{cache_suffix}"
+        cleared = 0
+        if cache_key in _parallel_cache:
+            del _parallel_cache[cache_key]
+            cleared = 1
+        if cache_key in _cache_timestamps:
+            del _cache_timestamps[cache_key]
+        print(f"🧹 Cleared parallel cache for branch {branch or 'main'}")
+        return cleared
+
+def force_cache_refresh(branch=None):
+    """Force immediate cache refresh by clearing and re-fetching
+
+    Args:
+        branch: Optional NetBox branch schema ID
+    """
     print("🔄 FORCING IMMEDIATE CACHE REFRESH...")
-    clear_parallel_cache()
-    return get_all_data_parallel()
+    clear_parallel_cache(branch)
+    return get_all_data_parallel(branch)
 
 def get_parallel_cache_stats():
     """Get parallel cache statistics"""
-    return {
+    stats = {
         'cached_datasets': len(_parallel_cache),
         'cache_ttl_seconds': PARALLEL_CACHE_TTL,
         'oldest_entry_age': min([
             time.time() - ts for ts in _cache_timestamps.values()
-        ]) if _cache_timestamps else 0
+        ]) if _cache_timestamps else 0,
+        'branches': []
     }
+    # List cached branches
+    for key in _parallel_cache.keys():
+        if key == 'all_parallel_data':
+            stats['branches'].append('main')
+        elif key.startswith('all_parallel_data_branch_'):
+            branch_id = key.replace('all_parallel_data_branch_', '')
+            stats['branches'].append(branch_id)
+    return stats
 
 def update_host_vm_count_in_cache(hostname, new_vm_count):
     """

@@ -8,34 +8,44 @@ import time
 NETBOX_URL = os.getenv('NETBOX_URL')
 NETBOX_API_KEY = os.getenv('NETBOX_API_KEY')
 
-# Cache for NetBox out of stock devices to avoid repeated API calls
-_outofstock_cache = {}
-_cache_ttl = 300  # 5 minutes cache TTL
-_last_cache_time = 0
+# Import NetBox utilities for branch-aware API calls
+from .netbox_utils import build_netbox_headers, get_cache_key_suffix
 
-def get_netbox_non_active_devices():
-    """Get devices from NetBox that are not in active status"""
+# Cache for NetBox out of stock devices to avoid repeated API calls
+# Now a dict keyed by branch suffix for branch-aware caching
+_outofstock_cache = {}  # key: branch_suffix -> list of devices
+_cache_ttl = 300  # 5 minutes cache TTL
+_last_cache_time = {}  # key: branch_suffix -> timestamp
+
+def get_netbox_non_active_devices(branch=None):
+    """Get devices from NetBox that are not in active status
+
+    Args:
+        branch: Optional NetBox branch schema ID (uses global default if not provided)
+    """
     global _outofstock_cache, _last_cache_time
-    
+
+    # Get cache key suffix for branch-aware caching
+    cache_suffix = get_cache_key_suffix(branch)
+
     # Check cache first
     current_time = time.time()
-    if current_time - _last_cache_time < _cache_ttl and _outofstock_cache:
-        print(f"✅ Using cached NetBox out-of-stock data ({len(_outofstock_cache)} devices)")
-        return _outofstock_cache
-    
+    last_time = _last_cache_time.get(cache_suffix, 0)
+    if current_time - last_time < _cache_ttl and cache_suffix in _outofstock_cache:
+        cached_data = _outofstock_cache[cache_suffix]
+        print(f"✅ Using cached NetBox out-of-stock data ({len(cached_data)} devices)")
+        return cached_data
+
     # Return empty if NetBox is not configured
     if not NETBOX_URL or not NETBOX_API_KEY:
         print("⚠️ NetBox not configured - returning empty out-of-stock list")
         return []
-    
+
     try:
         print("🔍 Querying NetBox for non-active GPU devices...")
-        
+
         url = f"{NETBOX_URL}/api/dcim/devices/"
-        headers = {
-            'Authorization': f'Token {NETBOX_API_KEY}',
-            'Content-Type': 'application/json'
-        }
+        headers = build_netbox_headers(branch)
         
         # Query for devices with non-active status and GPU tags
         # Status values: active, offline, planned, staged, failed, inventory, decommissioning
@@ -135,10 +145,10 @@ def get_netbox_non_active_devices():
                 device_info['gpu_tags'] = gpu_type_tags
             
             processed_devices.append(device_info)
-        
-        # Update cache
-        _outofstock_cache = processed_devices
-        _last_cache_time = current_time
+
+        # Update cache with branch-aware key
+        _outofstock_cache[cache_suffix] = processed_devices
+        _last_cache_time[cache_suffix] = current_time
         
         print(f"✅ NetBox out-of-stock query completed: {len(processed_devices)} non-active GPU devices found")
         
@@ -158,27 +168,65 @@ def get_netbox_non_active_devices():
         print(f"❌ NetBox out-of-stock query failed: {e}")
         return []
 
-def clear_outofstock_cache():
-    """Clear the out-of-stock devices cache"""
-    global _outofstock_cache, _last_cache_time
-    cache_size = len(_outofstock_cache)
-    _outofstock_cache = {}
-    _last_cache_time = 0
-    print(f"🗑️ Cleared NetBox out-of-stock cache: {cache_size} entries removed")
-    return cache_size
+def clear_outofstock_cache(branch=None):
+    """Clear the out-of-stock devices cache
 
-def get_outofstock_cache_stats():
-    """Get cache statistics for monitoring"""
+    Args:
+        branch: Optional branch to clear. If None, clears all branch caches.
+    """
+    global _outofstock_cache, _last_cache_time
+
+    if branch is None:
+        # Clear all caches
+        total_entries = sum(len(v) for v in _outofstock_cache.values())
+        _outofstock_cache = {}
+        _last_cache_time = {}
+        print(f"🗑️ Cleared all NetBox out-of-stock caches: {total_entries} entries removed")
+        return total_entries
+    else:
+        # Clear specific branch cache
+        cache_suffix = get_cache_key_suffix(branch)
+        cache_size = len(_outofstock_cache.get(cache_suffix, []))
+        _outofstock_cache.pop(cache_suffix, None)
+        _last_cache_time.pop(cache_suffix, None)
+        print(f"🗑️ Cleared NetBox out-of-stock cache for branch {branch or 'main'}: {cache_size} entries removed")
+        return cache_size
+
+def get_outofstock_cache_stats(branch=None):
+    """Get cache statistics for monitoring
+
+    Args:
+        branch: Optional branch to get stats for. If None, returns stats for all branches.
+    """
     global _outofstock_cache, _last_cache_time, _cache_ttl
-    
+
     current_time = time.time()
-    cache_age = current_time - _last_cache_time
-    is_expired = cache_age > _cache_ttl
-    
-    return {
-        'cached_devices': len(_outofstock_cache),
-        'cache_age_seconds': round(cache_age, 1),
-        'cache_ttl_seconds': _cache_ttl,
-        'is_expired': is_expired,
-        'last_update': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(_last_cache_time)) if _last_cache_time > 0 else 'Never'
-    }
+
+    if branch is None:
+        # Return stats for all branches
+        stats = {}
+        for cache_suffix, devices in _outofstock_cache.items():
+            last_time = _last_cache_time.get(cache_suffix, 0)
+            cache_age = current_time - last_time
+            branch_name = cache_suffix.replace('_branch_', '') if cache_suffix else 'main'
+            stats[branch_name] = {
+                'cached_devices': len(devices),
+                'cache_age_seconds': round(cache_age, 1),
+                'cache_ttl_seconds': _cache_ttl,
+                'is_expired': cache_age > _cache_ttl,
+                'last_update': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(last_time)) if last_time > 0 else 'Never'
+            }
+        return stats
+    else:
+        # Return stats for specific branch
+        cache_suffix = get_cache_key_suffix(branch)
+        last_time = _last_cache_time.get(cache_suffix, 0)
+        cache_age = current_time - last_time
+
+        return {
+            'cached_devices': len(_outofstock_cache.get(cache_suffix, [])),
+            'cache_age_seconds': round(cache_age, 1),
+            'cache_ttl_seconds': _cache_ttl,
+            'is_expired': cache_age > _cache_ttl,
+            'last_update': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(last_time)) if last_time > 0 else 'Never'
+        }

@@ -13,6 +13,9 @@ import time
 # Import parallel agents functionality
 from modules.parallel_agents import get_all_data_parallel, clear_parallel_cache
 
+# Import NetBox utilities for branch-aware API calls
+from modules.netbox_utils import build_netbox_headers, get_cache_key_suffix
+
 # Import cached aggregate operations instead of duplicating
 from modules.aggregate_operations import (
     discover_gpu_aggregates, 
@@ -94,23 +97,32 @@ def get_openstack_connection():
 
 # find_aggregate_by_name() is now imported from modules.openstack_operations
 
-def get_netbox_tenants_bulk(hostnames):
-    """Get tenant information from NetBox for multiple hostnames at once"""
+def get_netbox_tenants_bulk(hostnames, branch=None):
+    """Get tenant information from NetBox for multiple hostnames at once
+
+    Args:
+        hostnames: List of hostnames to look up
+        branch: Optional NetBox branch schema ID (uses global default if not provided)
+    """
     global _tenant_cache
-    
+
+    # Get cache key suffix for branch-aware caching
+    cache_suffix = get_cache_key_suffix(branch)
+
     # Return default if NetBox is not configured
     if not NETBOX_URL or not NETBOX_API_KEY:
         print("⚠️ NetBox not configured - using default tenant")
         default_result = {'tenant': 'Unknown', 'owner_group': 'Investors', 'nvlinks': False, 'netbox_device_id': None, 'netbox_url': None}
         return {hostname: default_result for hostname in hostnames}
-    
-    # Check cache first and separate cached vs uncached hostnames
+
+    # Check cache first and separate cached vs uncached hostnames (branch-aware)
     cached_results = {}
     uncached_hostnames = []
-    
+
     for hostname in hostnames:
-        if hostname in _tenant_cache:
-            cached_results[hostname] = _tenant_cache[hostname]
+        cache_key = f"{hostname}{cache_suffix}"
+        if cache_key in _tenant_cache:
+            cached_results[hostname] = _tenant_cache[cache_key]
         else:
             uncached_hostnames.append(hostname)
     
@@ -122,10 +134,7 @@ def get_netbox_tenants_bulk(hostnames):
     bulk_results = {}
     try:
         url = f"{NETBOX_URL}/api/dcim/devices/"
-        headers = {
-            'Authorization': f'Token {NETBOX_API_KEY}',
-            'Content-Type': 'application/json'
-        }
+        headers = build_netbox_headers(branch)
         
         # NetBox API supports filtering by multiple names using name__in
         # But since that might not work, we'll paginate through all results
@@ -173,9 +182,10 @@ def get_netbox_tenants_bulk(hostnames):
                     'netbox_device_id': device.get('id'),
                     'netbox_url': device.get('display_url') or device.get('url')
                 }
-                
+
                 device_map[device_name] = result
-                _tenant_cache[device_name] = result
+                cache_key = f"{device_name}{cache_suffix}"
+                _tenant_cache[cache_key] = result
         
         # Fill in results for uncached hostnames
         for hostname in uncached_hostnames:
@@ -186,7 +196,8 @@ def get_netbox_tenants_bulk(hostnames):
                 # Device not found in NetBox, use default
                 default_result = {'tenant': 'Unknown', 'owner_group': 'Investors', 'nvlinks': False, 'netbox_device_id': None, 'netbox_url': None}
                 bulk_results[hostname] = default_result
-                _tenant_cache[hostname] = default_result
+                cache_key = f"{hostname}{cache_suffix}"
+                _tenant_cache[cache_key] = default_result
                 print(f"⚠️ Device {hostname} not found in NetBox")
         
         print(f"📊 Bulk NetBox lookup completed: {len(bulk_results)} new devices processed")
@@ -197,14 +208,20 @@ def get_netbox_tenants_bulk(hostnames):
         default_result = {'tenant': 'Unknown', 'owner_group': 'Investors', 'nvlinks': False, 'netbox_device_id': None, 'netbox_url': None}
         for hostname in uncached_hostnames:
             bulk_results[hostname] = default_result
-            _tenant_cache[hostname] = default_result
-    
+            cache_key = f"{hostname}{cache_suffix}"
+            _tenant_cache[cache_key] = default_result
+
     # Merge cached and bulk results
     return {**cached_results, **bulk_results}
 
-def get_netbox_tenant(hostname):
-    """Get tenant information from NetBox for a single hostname (wrapper for backward compatibility)"""
-    return get_netbox_tenants_bulk([hostname])[hostname]
+def get_netbox_tenant(hostname, branch=None):
+    """Get tenant information from NetBox for a single hostname (wrapper for backward compatibility)
+
+    Args:
+        hostname: Hostname to look up
+        branch: Optional NetBox branch schema ID
+    """
+    return get_netbox_tenants_bulk([hostname], branch=branch)[hostname]
 
 def extract_gpu_count_from_flavor(flavor_name):
     """Extract GPU count from flavor name like 'n3-RTX-A6000x8' or 'n3-RTX-A6000x1-spot'"""

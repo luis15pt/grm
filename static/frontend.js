@@ -9,6 +9,11 @@ let pendingOperations = [];
 let availableGpuTypes = [];
 let isExecutionInProgress = false;
 
+// NetBox branch state
+let currentNetboxBranch = null;  // null = Main (Production)
+let availableBranches = [];
+let branchingAvailable = false;
+
 // EXACT ORIGINAL renderAggregateData function
 function renderAggregateData(data) {
     console.log('🔥 renderAggregateData called for GPU type:', data.gpu_type);
@@ -2540,6 +2545,198 @@ function adjustCardLayoutForColumnWidth() {
 // Run on window resize and initially
 window.addEventListener('resize', adjustCardLayoutForColumnWidth);
 document.addEventListener('DOMContentLoaded', adjustCardLayoutForColumnWidth);
+
+// =============================================================================
+// NETBOX BRANCH SELECTOR FUNCTIONS
+// =============================================================================
+
+/**
+ * Load available NetBox branches from the API
+ */
+async function loadNetboxBranches() {
+    try {
+        const response = await fetch('/api/netbox/branches');
+        const data = await response.json();
+
+        availableBranches = data.branches || [];
+        branchingAvailable = data.branching_available || false;
+        currentNetboxBranch = data.current_default || null;
+
+        renderBranchSelector();
+
+        console.log('🌿 NetBox branches loaded:', {
+            available: branchingAvailable,
+            count: availableBranches.length,
+            current: currentNetboxBranch
+        });
+    } catch (error) {
+        console.error('Failed to load NetBox branches:', error);
+        branchingAvailable = false;
+    }
+}
+
+/**
+ * Render the branch selector dropdown
+ */
+function renderBranchSelector() {
+    const container = document.getElementById('netboxBranchSelector');
+    if (!container) {
+        console.log('🌿 Branch selector container not found');
+        return;
+    }
+
+    // Hide if branching not available or only one branch (main)
+    if (!branchingAvailable || availableBranches.length <= 1) {
+        container.style.display = 'none';
+        return;
+    }
+
+    container.style.display = 'block';
+
+    let html = `
+        <div class="branch-selector d-flex align-items-center">
+            <label class="me-2 text-muted small" style="white-space: nowrap;">
+                <i class="fas fa-code-branch me-1"></i>NetBox Branch:
+            </label>
+            <select id="netboxBranchSelect" class="form-select form-select-sm" style="width: auto; min-width: 150px;">
+    `;
+
+    for (const branch of availableBranches) {
+        const schemaId = branch.schema_id || '';
+        const selected = (schemaId === (currentNetboxBranch || '')) ? 'selected' : '';
+        const statusBadge = branch.status !== 'active' ? ` (${branch.status_label})` : '';
+        html += `<option value="${schemaId}" ${selected}>${branch.name}${statusBadge}</option>`;
+    }
+
+    html += `
+            </select>
+        </div>
+    `;
+
+    container.innerHTML = html;
+
+    // Add change handler
+    const select = document.getElementById('netboxBranchSelect');
+    if (select) {
+        select.addEventListener('change', onBranchChange);
+    }
+}
+
+/**
+ * Handler for branch change
+ */
+async function onBranchChange(event) {
+    const newBranch = event.target.value || null;
+
+    if (newBranch === currentNetboxBranch) {
+        return;  // No change
+    }
+
+    console.log(`🌿 Switching NetBox branch: ${currentNetboxBranch || 'main'} -> ${newBranch || 'main'}`);
+
+    // Update current branch
+    currentNetboxBranch = newBranch;
+
+    // Show loading indicator
+    showBranchSwitchingIndicator();
+
+    try {
+        // Set as global default on server
+        await fetch('/api/netbox/branch/default', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ schema_id: newBranch })
+        });
+
+        // Clear caches and refresh data
+        await fetch('/api/refresh-all-data', { method: 'POST' });
+
+        // Reload current GPU type data by triggering the GPU type select change event
+        const gpuTypeSelect = document.getElementById('gpuTypeSelect');
+        if (gpuTypeSelect && gpuTypeSelect.value) {
+            gpuTypeSelect.dispatchEvent(new Event('change'));
+        }
+
+        showNotification(`Switched to branch: ${newBranch || 'Main (Production)'}`, 'success');
+    } catch (error) {
+        console.error('Failed to switch branch:', error);
+        showNotification('Failed to switch NetBox branch', 'error');
+    }
+
+    hideBranchSwitchingIndicator();
+}
+
+/**
+ * Show branch switching indicator
+ */
+function showBranchSwitchingIndicator() {
+    const select = document.getElementById('netboxBranchSelect');
+    if (select) {
+        select.disabled = true;
+    }
+
+    // Add a loading spinner near the selector
+    const container = document.getElementById('netboxBranchSelector');
+    if (container) {
+        const spinner = document.createElement('span');
+        spinner.id = 'branchLoadingSpinner';
+        spinner.className = 'spinner-border spinner-border-sm ms-2';
+        spinner.setAttribute('role', 'status');
+        container.querySelector('.branch-selector')?.appendChild(spinner);
+    }
+}
+
+/**
+ * Hide branch switching indicator
+ */
+function hideBranchSwitchingIndicator() {
+    const select = document.getElementById('netboxBranchSelect');
+    if (select) {
+        select.disabled = false;
+    }
+
+    const spinner = document.getElementById('branchLoadingSpinner');
+    if (spinner) {
+        spinner.remove();
+    }
+}
+
+/**
+ * Build API URL with branch parameter if set
+ */
+function buildApiUrl(baseUrl, additionalParams = {}) {
+    const url = new URL(baseUrl, window.location.origin);
+
+    // Add branch parameter if set
+    if (currentNetboxBranch) {
+        url.searchParams.set('netbox_branch', currentNetboxBranch);
+    }
+
+    // Add any additional parameters
+    for (const [key, value] of Object.entries(additionalParams)) {
+        url.searchParams.set(key, value);
+    }
+
+    return url.toString();
+}
+
+/**
+ * Get current branch for API calls
+ */
+function getCurrentBranch() {
+    return currentNetboxBranch;
+}
+
+// Initialize branch selector on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Delay slightly to ensure DOM is ready
+    setTimeout(loadNetboxBranches, 100);
+});
+
+// Make branch functions globally available
+window.loadNetboxBranches = loadNetboxBranches;
+window.getCurrentBranch = getCurrentBranch;
+window.buildApiUrl = buildApiUrl;
 
 // Make tooltip functions globally available
 window.showHostTooltip = showHostTooltip;

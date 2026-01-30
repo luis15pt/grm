@@ -7,41 +7,50 @@ import os
 NETBOX_URL = os.getenv('NETBOX_URL')
 NETBOX_API_KEY = os.getenv('NETBOX_API_KEY')
 
+# Import NetBox utilities for branch-aware API calls
+from .netbox_utils import build_netbox_headers, get_cache_key_suffix
+
 # Cache for NetBox tenant lookups to avoid repeated API calls
 _tenant_cache = {}
 
-def get_netbox_tenants_bulk(hostnames):
-    """Get tenant information from NetBox for multiple hostnames at once"""
+def get_netbox_tenants_bulk(hostnames, branch=None):
+    """Get tenant information from NetBox for multiple hostnames at once
+
+    Args:
+        hostnames: List of hostnames to look up
+        branch: Optional NetBox branch schema ID (uses global default if not provided)
+    """
     global _tenant_cache
-    
+
+    # Get cache key suffix for branch-aware caching
+    cache_suffix = get_cache_key_suffix(branch)
+
     # Return default if NetBox is not configured
     if not NETBOX_URL or not NETBOX_API_KEY:
         print("⚠️ NetBox not configured - using default tenant")
         default_result = {'tenant': 'Unknown', 'owner_group': 'Investors', 'nvlinks': False, 'netbox_device_id': None, 'netbox_url': None}
         return {hostname: default_result for hostname in hostnames}
-    
-    # Check cache first and separate cached vs uncached hostnames
+
+    # Check cache first and separate cached vs uncached hostnames (branch-aware)
     cached_results = {}
     uncached_hostnames = []
-    
+
     for hostname in hostnames:
-        if hostname in _tenant_cache:
-            cached_results[hostname] = _tenant_cache[hostname]
+        cache_key = f"{hostname}{cache_suffix}"
+        if cache_key in _tenant_cache:
+            cached_results[hostname] = _tenant_cache[cache_key]
         else:
             uncached_hostnames.append(hostname)
-    
+
     # If all hostnames are cached, return cached results
     if not uncached_hostnames:
         return cached_results
-    
+
     # Bulk query NetBox for uncached hostnames
     bulk_results = {}
     try:
         url = f"{NETBOX_URL}/api/dcim/devices/"
-        headers = {
-            'Authorization': f'Token {NETBOX_API_KEY}',
-            'Content-Type': 'application/json'
-        }
+        headers = build_netbox_headers(branch)
         
         # NetBox API supports filtering by multiple names using name__in
         # But since that might not work, we'll paginate through all results
@@ -89,10 +98,11 @@ def get_netbox_tenants_bulk(hostnames):
                     'netbox_device_id': device.get('id'),
                     'netbox_url': device.get('display_url') or device.get('url')
                 }
-                
+
                 device_map[device_name] = result
-                _tenant_cache[device_name] = result
-        
+                cache_key = f"{device_name}{cache_suffix}"
+                _tenant_cache[cache_key] = result
+
         # Fill in results for uncached hostnames
         for hostname in uncached_hostnames:
             if hostname in device_map:
@@ -102,28 +112,35 @@ def get_netbox_tenants_bulk(hostnames):
                 # Device not found in NetBox, use default
                 default_result = {'tenant': 'Unknown', 'owner_group': 'Investors', 'nvlinks': False, 'netbox_device_id': None, 'netbox_url': None}
                 bulk_results[hostname] = default_result
-                _tenant_cache[hostname] = default_result
+                cache_key = f"{hostname}{cache_suffix}"
+                _tenant_cache[cache_key] = default_result
                 print(f"⚠️ Device {hostname} not found in NetBox")
-        
+
         print(f"📊 Bulk NetBox lookup completed: {len(bulk_results)} new devices processed")
-        
+
     except Exception as e:
         print(f"❌ NetBox bulk lookup failed: {e}")
         # Fall back to default for all uncached hostnames
         default_result = {'tenant': 'Unknown', 'owner_group': 'Investors', 'nvlinks': False, 'netbox_device_id': None, 'netbox_url': None}
         for hostname in uncached_hostnames:
             bulk_results[hostname] = default_result
-            _tenant_cache[hostname] = default_result
-    
+            cache_key = f"{hostname}{cache_suffix}"
+            _tenant_cache[cache_key] = default_result
+
     # Merge cached and bulk results
     return {**cached_results, **bulk_results}
 
-def get_netbox_tenant(hostname):
-    """Get tenant information from NetBox for a single hostname (wrapper for backward compatibility)"""
-    return get_netbox_tenants_bulk([hostname])[hostname]
+def get_netbox_tenant(hostname, branch=None):
+    """Get tenant information from NetBox for a single hostname (wrapper for backward compatibility)
+
+    Args:
+        hostname: Hostname to look up
+        branch: Optional NetBox branch schema ID
+    """
+    return get_netbox_tenants_bulk([hostname], branch=branch)[hostname]
 
 
-def get_rack_visualization_data(site_filter=None, gpu_type_filter=None, owner_filter=None):
+def get_rack_visualization_data(site_filter=None, gpu_type_filter=None, owner_filter=None, branch=None):
     """
     Get rack visualization data using parallel agents as the single source of truth.
     All data including rack_position and u_height comes from parallel agents.
@@ -132,6 +149,7 @@ def get_rack_visualization_data(site_filter=None, gpu_type_filter=None, owner_fi
         site_filter: Filter by datacenter site (e.g., 'Enovum')
         gpu_type_filter: Filter by GPU type (e.g., 'H100', 'A100')
         owner_filter: Filter by owner ('Nexgen Cloud' or 'Investors')
+        branch: Optional NetBox branch schema ID
 
     Returns: {
         "racks": [{
@@ -150,7 +168,7 @@ def get_rack_visualization_data(site_filter=None, gpu_type_filter=None, owner_fi
     try:
         # Step 1: Get all device data from parallel agents (single source of truth)
         print(f"🔄 Loading rack visualization data from parallel agents...")
-        parallel_data = get_all_data_parallel()
+        parallel_data = get_all_data_parallel(branch=branch)
 
         # Collect all hosts from all GPU types
         # The parallel_data structure is: {gpu_type: {pool_name: {hosts: [...]}}}

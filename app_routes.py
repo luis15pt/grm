@@ -132,21 +132,23 @@ def register_routes(app):
     @app.route('/api/aggregates/<gpu_type>')
     def get_aggregate_data(gpu_type):
         """Get aggregate data for a specific GPU type using parallel agents system
-        
+
         Query Parameters:
         - summary_only=true: Return only host counts and basic info (fast)
-        - include_vms=false: Skip VM count queries (faster)  
+        - include_vms=false: Skip VM count queries (faster)
         - include_gpu_info=false: Skip GPU info queries (faster)
+        - netbox_branch=<schema_id>: Query data from a specific NetBox branch
         """
         try:
             from modules.parallel_agents import get_all_data_parallel
             from flask import request
-            
+
             # Parse optimization flags
             summary_only = request.args.get('summary_only', 'false').lower() == 'true'
             include_vms = request.args.get('include_vms', 'true').lower() == 'true'
             include_gpu_info = request.args.get('include_gpu_info', 'true').lower() == 'true'
-            
+            branch = request.args.get('netbox_branch', None)
+
             # Performance tracking
             start_time = time.time()
             optimization_note = ""
@@ -154,11 +156,13 @@ def register_routes(app):
                 optimization_note = " (SUMMARY MODE - counts only)"
             elif not include_vms or not include_gpu_info:
                 optimization_note = f" (OPTIMIZED - vms={include_vms}, gpu={include_gpu_info})"
-            
+            if branch:
+                optimization_note += f" (BRANCH: {branch})"
+
             print(f"🚀 Loading GPU type '{gpu_type}' using PARALLEL AGENTS system{optimization_note}...")
-            
-            # Get all data using parallel agents
-            organized_data = get_all_data_parallel()
+
+            # Get all data using parallel agents (with optional branch)
+            organized_data = get_all_data_parallel(branch=branch)
             
             if gpu_type not in organized_data:
                 return jsonify({'error': 'Invalid GPU type'}), 400
@@ -1982,6 +1986,152 @@ power_state:
             return jsonify({'success': False, 'error': str(e)}), 500
 
     # =============================================================================
+    # NETBOX BRANCH MANAGEMENT ENDPOINTS
+    # =============================================================================
+
+    @app.route('/api/netbox/branches')
+    def list_netbox_branches():
+        """List all available NetBox branches"""
+        try:
+            from modules.netbox_utils import (
+                list_available_branches,
+                is_branching_available,
+                get_global_default_branch
+            )
+
+            if not is_branching_available():
+                return jsonify({
+                    'branches': [{
+                        'id': None,
+                        'name': 'Main (Production)',
+                        'schema_id': None,
+                        'status': 'active',
+                        'status_label': 'Active',
+                        'description': 'Main production data',
+                        'is_default': True
+                    }],
+                    'branching_available': False,
+                    'message': 'NetBox branching plugin not installed or not accessible',
+                    'current_default': None
+                })
+
+            branches = list_available_branches()
+
+            # Add "Main" as the default option at the beginning
+            all_branches = [{
+                'id': None,
+                'name': 'Main (Production)',
+                'schema_id': None,
+                'status': 'active',
+                'status_label': 'Active',
+                'description': 'Main production data',
+                'is_default': True
+            }]
+            all_branches.extend(branches)
+
+            return jsonify({
+                'branches': all_branches,
+                'branching_available': True,
+                'current_default': get_global_default_branch()
+            })
+
+        except Exception as e:
+            print(f"❌ Error listing NetBox branches: {e}")
+            return jsonify({'error': str(e), 'branches': []}), 500
+
+    @app.route('/api/netbox/branch/validate')
+    def validate_netbox_branch():
+        """Validate a NetBox branch schema ID"""
+        try:
+            from modules.netbox_utils import validate_branch
+
+            schema_id = request.args.get('schema_id')
+
+            result = validate_branch(schema_id)
+
+            if result:
+                return jsonify({
+                    'valid': True,
+                    'branch': result
+                })
+            else:
+                return jsonify({
+                    'valid': False,
+                    'error': f'Branch with schema_id "{schema_id}" not found'
+                }), 404
+
+        except Exception as e:
+            return jsonify({'valid': False, 'error': str(e)}), 500
+
+    @app.route('/api/netbox/branch/default', methods=['GET'])
+    def get_netbox_default_branch():
+        """Get current global default NetBox branch"""
+        try:
+            from modules.netbox_utils import get_global_default_branch, is_branching_available
+
+            return jsonify({
+                'success': True,
+                'default_branch': get_global_default_branch(),
+                'branching_available': is_branching_available()
+            })
+
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    @app.route('/api/netbox/branch/default', methods=['POST'])
+    def set_netbox_default_branch():
+        """Set global default NetBox branch"""
+        try:
+            from modules.netbox_utils import (
+                set_global_default_branch,
+                validate_branch,
+                get_global_default_branch
+            )
+
+            data = request.get_json() or {}
+            schema_id = data.get('schema_id')  # None or empty string means main branch
+
+            # Normalize empty string to None
+            if schema_id == '':
+                schema_id = None
+
+            # Validate branch exists (if not main)
+            if schema_id:
+                result = validate_branch(schema_id)
+                if not result:
+                    return jsonify({
+                        'success': False,
+                        'error': f'Branch with schema_id "{schema_id}" not found'
+                    }), 404
+
+            # Set the default branch
+            set_global_default_branch(schema_id)
+
+            return jsonify({
+                'success': True,
+                'message': f'Default branch set to: {schema_id or "Main (Production)"}',
+                'default_branch': get_global_default_branch()
+            })
+
+        except Exception as e:
+            print(f"❌ Error setting default NetBox branch: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    @app.route('/api/netbox/branch/info')
+    def get_netbox_branch_info():
+        """Get information about current NetBox branch configuration"""
+        try:
+            from modules.netbox_utils import get_branch_info
+
+            return jsonify({
+                'success': True,
+                **get_branch_info()
+            })
+
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    # =============================================================================
     # RACK VISUALIZATION ENDPOINTS
     # =============================================================================
 
@@ -1994,6 +2144,7 @@ power_state:
         - site: Filter by datacenter site (e.g., 'CA1')
         - gpu_type: Filter by GPU type (e.g., 'H100', 'A100')
         - owner: Filter by owner ('Nexgen Cloud' or 'Investors')
+        - netbox_branch: Optional NetBox branch schema ID
 
         Returns rack positioning data with devices and summary statistics.
         """
@@ -2004,16 +2155,18 @@ power_state:
             site_filter = request.args.get('site', None)
             gpu_type_filter = request.args.get('gpu_type', None)
             owner_filter = request.args.get('owner', None)
+            branch = request.args.get('netbox_branch', None)
 
-            print(f"🏢 Rack visualization request: site={site_filter}, gpu_type={gpu_type_filter}, owner={owner_filter}")
+            print(f"🏢 Rack visualization request: site={site_filter}, gpu_type={gpu_type_filter}, owner={owner_filter}, branch={branch}")
 
             start_time = time.time()
 
-            # Fetch rack data from NetBox
+            # Fetch rack data from NetBox (with optional branch)
             rack_data = get_rack_visualization_data(
                 site_filter=site_filter,
                 gpu_type_filter=gpu_type_filter,
-                owner_filter=owner_filter
+                owner_filter=owner_filter,
+                branch=branch
             )
 
             total_time = time.time() - start_time
