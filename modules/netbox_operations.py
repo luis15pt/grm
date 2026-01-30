@@ -259,7 +259,8 @@ def get_rack_visualization_data(site_filter=None, gpu_type_filter=None, owner_fi
                 "netbox_url": host.get('netbox_url'),
                 "vm_count": host.get('vm_count', 0),
                 "gpu_used": host.get('gpu_used', 0),
-                "gpu_capacity": host.get('gpu_capacity', 8)
+                "gpu_capacity": host.get('gpu_capacity', 8),
+                "aggregate": host.get('aggregate', '')
             }
 
             # Update summary counters

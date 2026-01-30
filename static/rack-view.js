@@ -531,6 +531,7 @@ class RackView {
         const gpuUsageRatio = device.gpu_usage_ratio || `${gpuUsed}/${gpuCapacity}`;
         const isInUse = gpuUsed > 0;
         const usagePercent = gpuCapacity > 0 ? (gpuUsed / gpuCapacity) : 0;
+        const vmCount = device.vm_count || 0;
 
         // Determine device class based on owner, status, and GPU usage
         let deviceClass = 'rack-device';
@@ -587,13 +588,16 @@ class RackView {
                  data-nvlinks="${device.nvlinks}"
                  data-gpu-used="${gpuUsed}"
                  data-gpu-capacity="${gpuCapacity}"
-                 data-gpu-ratio="${gpuUsageRatio}">
+                 data-gpu-ratio="${gpuUsageRatio}"
+                 data-aggregate="${device.aggregate || ''}"
+                 data-vm-count="${vmCount}">
                 <div class="device-info">
                     <span class="device-name">${displayName}</span>
                     <span class="device-owner-badge">${ownerLabel}</span>
                 </div>
                 <div class="device-stats">
                     <span class="device-gpu-usage">${gpuUsageRatio}</span>
+                    ${vmCount > 0 ? `<span class="rack-vm-button" data-hostname="${device.hostname}" data-vm-count="${vmCount}" title="View running VMs (${vmCount})">💻</span>` : ''}
                     ${device.nvlinks ? '<i class="fas fa-link nvlink-icon"></i>' : ''}
                     ${statusIcon}
                 </div>
@@ -646,6 +650,19 @@ class RackView {
             device.addEventListener('mouseenter', (e) => this.showTooltip(e, device));
             device.addEventListener('mouseleave', () => this.hideTooltip());
         });
+
+        // Attach VM button click handlers
+        const vmButtons = document.querySelectorAll('.rack-vm-button');
+        vmButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const hostname = button.dataset.hostname;
+                const vmCount = parseInt(button.dataset.vmCount) || 0;
+                if (typeof showVMInstancesModal === 'function') {
+                    showVMInstancesModal(hostname, vmCount);
+                }
+            });
+        });
     }
 
     /**
@@ -662,6 +679,7 @@ class RackView {
         const gpuUsed = parseInt(deviceEl.dataset.gpuUsed) || 0;
         const gpuCapacity = parseInt(deviceEl.dataset.gpuCapacity) || 8;
         const gpuRatio = deviceEl.dataset.gpuRatio || `${gpuUsed}/${gpuCapacity}`;
+        const aggregate = deviceEl.dataset.aggregate || '';
 
         const ownerBadge = owner === 'Nexgen Cloud'
             ? '<span class="badge bg-success">NexGen</span>'
@@ -714,6 +732,10 @@ class RackView {
                 <div class="tooltip-row">
                     <span class="tooltip-label">Status:</span>
                     <span class="tooltip-value">${statusBadge} ${nvlinkBadge}</span>
+                </div>
+                <div class="tooltip-row">
+                    <span class="tooltip-label">Aggregate:</span>
+                    <span class="tooltip-value">${aggregate || 'None'}</span>
                 </div>
             </div>
         `;
