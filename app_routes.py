@@ -1985,6 +1985,43 @@ power_state:
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
 
+    @app.route('/api/clear-netbox-cache', methods=['POST'])
+    def clear_netbox_caches_only():
+        """Clear only NetBox-related caches (for branch switching)
+
+        This is more efficient than clearing all caches when only
+        NetBox branch data needs to be refreshed.
+        """
+        try:
+            from app_business_logic import clear_netbox_cache
+            from modules.netbox_outofstock_operations import clear_outofstock_cache
+            from modules.parallel_agents import clear_parallel_cache
+
+            # Clear NetBox tenant cache
+            netbox_cache_count = clear_netbox_cache()
+
+            # Clear out-of-stock cache (NetBox data)
+            outofstock_cache_count = clear_outofstock_cache()
+
+            # Clear parallel cache (contains NetBox device data)
+            parallel_cache_count = clear_parallel_cache()
+
+            print(f"🌿 NetBox caches cleared: tenant={netbox_cache_count}, outofstock={outofstock_cache_count}, parallel={parallel_cache_count}")
+
+            return jsonify({
+                'success': True,
+                'message': 'NetBox caches cleared successfully',
+                'cleared': {
+                    'netbox_tenant_cache': netbox_cache_count,
+                    'outofstock_cache': outofstock_cache_count,
+                    'parallel_cache': parallel_cache_count
+                }
+            })
+
+        except Exception as e:
+            print(f"❌ Error clearing NetBox caches: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+
     # =============================================================================
     # NETBOX BRANCH MANAGEMENT ENDPOINTS
     # =============================================================================

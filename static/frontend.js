@@ -2641,15 +2641,15 @@ async function onBranchChange(event) {
     showBranchSwitchingIndicator();
 
     try {
-        // Set as global default on server
+        // Set as global default on server and clear only NetBox caches
         await fetch('/api/netbox/branch/default', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ schema_id: newBranch })
         });
 
-        // Clear caches and refresh data
-        await fetch('/api/refresh-all-data', { method: 'POST' });
+        // Clear only NetBox-related caches (not OpenStack/VM data)
+        await fetch('/api/clear-netbox-cache', { method: 'POST' });
 
         // Reload current GPU type data by triggering the GPU type select change event
         const gpuTypeSelect = document.getElementById('gpuTypeSelect');
