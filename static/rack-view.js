@@ -180,19 +180,28 @@ class RackView {
         const byGpu = summary.by_gpu_type || {};
         const totals = summary.totals || {};
 
-        // Calculate availability (Empty vs In Use) from rack data - NexGen only
-        let emptyCount = 0;
-        let inUseCount = 0;
+        // Calculate availability (Empty vs In Use) from rack data
+        let nexgenEmptyCount = 0;
+        let nexgenInUseCount = 0;
+        let investorEmptyCount = 0;
+        let investorInUseCount = 0;
         if (this.rackData.racks) {
             this.rackData.racks.forEach(rack => {
                 if (rack.devices) {
                     rack.devices.forEach(device => {
-                        // Only count NexGen devices for availability
+                        const isInUse = (device.gpu_used || 0) > 0;
                         if (device.owner_group === 'Nexgen Cloud') {
-                            if ((device.gpu_used || 0) > 0) {
-                                inUseCount++;
+                            if (isInUse) {
+                                nexgenInUseCount++;
                             } else {
-                                emptyCount++;
+                                nexgenEmptyCount++;
+                            }
+                        } else {
+                            // Investor devices
+                            if (isInUse) {
+                                investorInUseCount++;
+                            } else {
+                                investorEmptyCount++;
                             }
                         }
                     });
@@ -214,7 +223,7 @@ class RackView {
 
         summaryEl.innerHTML = `
             <div class="row">
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <div class="summary-card">
                         <h6 class="text-muted mb-2">OWNERSHIP</h6>
                         <div class="d-flex justify-content-between mb-1">
@@ -232,16 +241,16 @@ class RackView {
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <div class="summary-card">
                         <h6 class="text-muted mb-2">NEXGEN AVAILABILITY</h6>
                         <div class="d-flex justify-content-between mb-1">
                             <span class="text-success"><i class="fas fa-server"></i> Empty:</span>
-                            <strong>${emptyCount}</strong>
+                            <strong>${nexgenEmptyCount}</strong>
                         </div>
                         <div class="d-flex justify-content-between mb-1">
                             <span class="text-warning"><i class="fas fa-circle"></i> In Use:</span>
-                            <strong>${inUseCount}</strong>
+                            <strong>${nexgenInUseCount}</strong>
                         </div>
                         <hr class="my-2">
                         <div class="d-flex justify-content-between">
@@ -250,7 +259,20 @@ class RackView {
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
+                    <div class="summary-card">
+                        <h6 class="text-muted mb-2">INVESTOR AVAILABILITY</h6>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-info"><i class="fas fa-server"></i> Empty:</span>
+                            <strong>${investorEmptyCount}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-secondary"><i class="fas fa-circle"></i> In Use:</span>
+                            <strong>${investorInUseCount}</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2">
                     <div class="summary-card">
                         <h6 class="text-muted mb-2">STATUS</h6>
                         <div class="d-flex justify-content-between mb-1">
@@ -263,7 +285,7 @@ class RackView {
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <div class="summary-card">
                         <h6 class="text-muted mb-2">GPU BREAKDOWN</h6>
                         <div class="gpu-breakdown">
