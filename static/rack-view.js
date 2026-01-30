@@ -96,7 +96,9 @@ class RackView {
             gpuSelect.addEventListener('change', (e) => {
                 const value = e.target.value;
                 this.filters.gpuType = (value && value !== 'All' && value !== '') ? value : '';
-                // Only reload if rack view is visible
+                // Always reload global summary for banner preview options
+                this.loadGlobalSummary();
+                // Only reload rack view if it's visible
                 const container = document.getElementById('rackViewContainer');
                 if (container && container.style.display !== 'none') {
                     this.loadData();
@@ -163,8 +165,17 @@ class RackView {
      */
     async loadGlobalSummary() {
         try {
-            // Fetch data without site filter to get global stats
-            const url = '/api/rack-visualization';
+            // Get GPU type from the main selector
+            const gpuSelect = document.getElementById('gpuTypeSelect');
+            const gpuType = gpuSelect ? gpuSelect.value : '';
+
+            // Build URL with GPU type filter (but no site filter for global stats)
+            const params = new URLSearchParams();
+            if (gpuType && gpuType !== 'All' && gpuType !== '') {
+                params.append('gpu_type', gpuType);
+            }
+
+            const url = `/api/rack-visualization?${params.toString()}`;
             console.log('Loading global rack summary:', url);
 
             const response = await fetch(url);
