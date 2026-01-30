@@ -1063,19 +1063,24 @@ def generate_config_from_hosts(all_hosts):
         config = {}
         config['runpod'] = list(runpod_aggregates)[0] if runpod_aggregates else False
         config['spot'] = list(spot_aggregates)[0] if spot_aggregates else False
-        
+
         # Create ondemand variants array with proper structure
         config['ondemand_variants'] = [
-            {'aggregate': agg, 'variant': agg} 
+            {'aggregate': agg, 'variant': agg}
             for agg in ondemand_aggregates
         ]
-        
-        # Create contracts array with proper structure  
+
+        # DEBUG: Log aggregate collection
+        print(f"🔍 DEBUG generate_config_from_hosts:")
+        print(f"   ondemand_aggregates = {ondemand_aggregates}")
+        print(f"   ondemand_variants = {config['ondemand_variants']}")
+
+        # Create contracts array with proper structure
         config['contracts'] = [
             {'aggregate': agg, 'name': agg}
             for agg in contract_aggregates
         ]
-        
+
         return config
         
     except Exception as e:

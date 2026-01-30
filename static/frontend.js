@@ -1431,9 +1431,23 @@ function renderOnDemandVariantColumns(ondemandData) {
     });
     
     // Check if variants include NVLink differentiation (only split columns for NVLink variants)
-    const hasNVLinkVariants = ondemandData.variants && ondemandData.variants.length > 1 && 
+    console.log('🔍 NVLink check debug:', {
+        hasVariants: !!ondemandData.variants,
+        variantsLength: ondemandData.variants ? ondemandData.variants.length : 0,
+        variants: ondemandData.variants,
+        variantNames: ondemandData.variants ? ondemandData.variants.map(v => v.variant) : [],
+        nvlinkCheck: ondemandData.variants ? ondemandData.variants.map(v => ({
+            variant: v.variant,
+            lowercase: v.variant ? v.variant.toLowerCase() : null,
+            includesNvlink: v.variant ? v.variant.toLowerCase().includes('nvlink') : false
+        })) : []
+    });
+
+    const hasNVLinkVariants = ondemandData.variants && ondemandData.variants.length > 1 &&
         ondemandData.variants.some(v => v.variant.toLowerCase().includes('nvlink'));
-        
+
+    console.log('🔍 hasNVLinkVariants result:', hasNVLinkVariants);
+
     if (hasNVLinkVariants) {
         // Multiple variants - create separate columns
         // Hide fallback column

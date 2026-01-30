@@ -427,12 +427,19 @@ def register_routes(app):
             # Performance logging
             print(f"🚀 PARALLEL AGENTS PERFORMANCE SUMMARY:")
             print(f"   📊 GPU Type: {gpu_type}")
-            print(f"   ⏱️  Total Time: {total_time:.2f}s") 
+            print(f"   ⏱️  Total Time: {total_time:.2f}s")
             print(f"   🖥️  Total Hosts: {total_hosts}")
             print(f"   📈 Hosts/Second: {total_hosts/total_time:.1f}")
             print(f"   🔄 Data Sources: 4 agents in parallel (NetBox, Aggregates, VM Counts, GPU Info)")
             print(f"   ✅ Speedup: ~{max(1, int(total_hosts * 3 / total_time))}x vs individual queries")
-            
+
+            # DEBUG: Log exact variants being sent to frontend
+            variants_for_frontend = config.get('ondemand_variants', [])
+            print(f"🔍 DEBUG FRONTEND VARIANTS: Sending to frontend: {variants_for_frontend}")
+            print(f"🔍 DEBUG FRONTEND VARIANTS: Count = {len(variants_for_frontend)}")
+            for v in variants_for_frontend:
+                print(f"   - variant='{v.get('variant')}', aggregate='{v.get('aggregate')}'")
+
             return jsonify({
                 'gpu_type': gpu_type,
                 'ondemand': {
