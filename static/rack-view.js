@@ -295,6 +295,79 @@ class RackView {
                 </div>
             </div>
         `;
+
+        // Also populate the 3 preview options in gpuTypeSummary
+        this.updatePreviewOptions(byOwner, totals, nexgenEmptyCount, nexgenInUseCount, investorEmptyCount, investorInUseCount, gpuBreakdownHtml);
+    }
+
+    /**
+     * Update the 3 preview layout options with data
+     */
+    updatePreviewOptions(byOwner, totals, nexgenEmptyCount, nexgenInUseCount, investorEmptyCount, investorInUseCount, gpuBreakdownHtml) {
+        const nexgenTotal = byOwner['Nexgen Cloud']?.total || 0;
+        const investorsTotal = byOwner['Investors']?.total || 0;
+        const totalDevices = totals.total_devices || 0;
+        const forSale = totals.for_sale || 0;
+        const activeCount = (byOwner['Nexgen Cloud']?.active || 0) + (byOwner['Investors']?.active || 0);
+        const racksCount = totals.total_racks || 0;
+
+        // Get NetBox count from the hidden element (populated by banner.js)
+        const netboxEl = document.getElementById('netboxInventoryCount');
+        const netboxCount = netboxEl ? netboxEl.textContent : '-';
+
+        // Helper to safely set element text
+        const setText = (id, value) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = value;
+        };
+
+        // Helper to safely set element HTML
+        const setHtml = (id, value) => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = value || '<span class="text-muted">-</span>';
+        };
+
+        // Option A
+        setText('optA-nexgen', nexgenTotal);
+        setText('optA-investors', investorsTotal);
+        setText('optA-total', totalDevices);
+        setText('optA-nexgen-empty', nexgenEmptyCount);
+        setText('optA-nexgen-inuse', nexgenInUseCount);
+        setText('optA-forsale', forSale);
+        setText('optA-investor-empty', investorEmptyCount);
+        setText('optA-investor-inuse', investorInUseCount);
+        setText('optA-netbox', netboxCount);
+        setText('optA-active', activeCount);
+        setText('optA-racks', racksCount);
+        setHtml('optA-gpu-breakdown', gpuBreakdownHtml);
+
+        // Option B
+        setText('optB-nexgen', nexgenTotal);
+        setText('optB-investors', investorsTotal);
+        setText('optB-total', totalDevices);
+        setText('optB-netbox', netboxCount);
+        setText('optB-nexgen-empty', nexgenEmptyCount);
+        setText('optB-nexgen-inuse', nexgenInUseCount);
+        setText('optB-forsale', forSale);
+        setText('optB-investor-empty', investorEmptyCount);
+        setText('optB-investor-inuse', investorInUseCount);
+        setText('optB-active', activeCount);
+        setText('optB-racks', racksCount);
+        setHtml('optB-gpu-breakdown', gpuBreakdownHtml);
+
+        // Option C
+        setText('optC-nexgen', nexgenTotal);
+        setText('optC-investors', investorsTotal);
+        setText('optC-total', totalDevices);
+        setText('optC-nexgen-empty', nexgenEmptyCount);
+        setText('optC-nexgen-inuse', nexgenInUseCount);
+        setText('optC-forsale', forSale);
+        setText('optC-investor-empty', investorEmptyCount);
+        setText('optC-investor-inuse', investorInUseCount);
+        setText('optC-active', activeCount);
+        setText('optC-racks', racksCount);
+        setText('optC-netbox', netboxCount);
+        setHtml('optC-gpu-breakdown', gpuBreakdownHtml);
     }
 
     /**
@@ -679,6 +752,17 @@ class RackView {
 
 // Global instance
 const rackView = new RackView();
+
+// Auto-load rack data when page loads (for preview options in banner)
+document.addEventListener('DOMContentLoaded', () => {
+    // Load data in background after a short delay to not block initial page load
+    setTimeout(() => {
+        rackView.init().then(() => {
+            rackView.loadData();
+            console.log('Rack view data pre-loaded for preview options');
+        });
+    }, 1000);
+});
 
 /**
  * Toggle between Aggregate View and Rack View
