@@ -159,6 +159,68 @@ class RackView {
     }
 
     /**
+     * Load global summary data (without site filter) for banner preview options
+     */
+    async loadGlobalSummary() {
+        try {
+            // Fetch data without site filter to get global stats
+            const url = '/api/rack-visualization';
+            console.log('Loading global rack summary:', url);
+
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`API error: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('Global rack data loaded:', data);
+
+            // Calculate summary stats from the data
+            const summary = data.summary || {};
+            const byOwner = summary.by_owner || {};
+            const byGpu = summary.by_gpu_type || {};
+            const totals = summary.totals || {};
+
+            // Calculate availability from rack data
+            let nexgenEmptyCount = 0;
+            let nexgenInUseCount = 0;
+            let investorEmptyCount = 0;
+            let investorInUseCount = 0;
+
+            if (data.racks) {
+                data.racks.forEach(rack => {
+                    if (rack.devices) {
+                        rack.devices.forEach(device => {
+                            const isInUse = (device.gpu_used || 0) > 0;
+                            if (device.owner_group === 'Nexgen Cloud') {
+                                if (isInUse) nexgenInUseCount++;
+                                else nexgenEmptyCount++;
+                            } else {
+                                if (isInUse) investorInUseCount++;
+                                else investorEmptyCount++;
+                            }
+                        });
+                    }
+                });
+            }
+
+            // Build GPU breakdown HTML
+            let gpuBreakdownHtml = '';
+            Object.entries(byGpu).forEach(([gpu, counts]) => {
+                const decomCount = counts.decommissioning || 0;
+                const decomText = decomCount > 0 ? ` <span class="text-warning">(${decomCount} for sale)</span>` : '';
+                gpuBreakdownHtml += `<span class="badge bg-secondary me-1">${gpu}: ${counts.nexgen || 0}${decomText}</span>`;
+            });
+
+            // Update the preview options
+            this.updatePreviewOptions(byOwner, totals, nexgenEmptyCount, nexgenInUseCount, investorEmptyCount, investorInUseCount, gpuBreakdownHtml);
+
+        } catch (error) {
+            console.error('Failed to load global rack summary:', error);
+        }
+    }
+
+    /**
      * Render the rack visualization
      */
     render() {
@@ -755,11 +817,11 @@ const rackView = new RackView();
 
 // Auto-load rack data when page loads (for preview options in banner)
 document.addEventListener('DOMContentLoaded', () => {
-    // Load data in background after a short delay to not block initial page load
+    // Load global data (no site filter) after a short delay
     setTimeout(() => {
         rackView.init().then(() => {
-            rackView.loadData();
-            console.log('Rack view data pre-loaded for preview options');
+            rackView.loadGlobalSummary();
+            console.log('Rack view global summary pre-loaded for preview options');
         });
     }, 1000);
 });
