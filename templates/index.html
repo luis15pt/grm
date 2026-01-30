@@ -142,287 +142,279 @@
                     </div>
                 </nav>
 
-                <!-- GPU Type Summary Cards - Layout Preview Options -->
-                <div id="gpuTypeSummary" class="mb-4" style="display: none;">
-                    <!-- Hidden elements for backward compatibility -->
-                    <span id="totalGpuUsage" style="display:none;">-</span>
-                    <span id="gpuUsagePercentage" style="display:none;">-</span>
-                    <span id="netboxInventoryCount" style="display:none;">-</span>
-                    <span id="columnsInventoryCount" style="display:none;">-</span>
-                    <span id="inventoryStatus" style="display:none;"></span>
-                    <span id="selectedGpuTypeName" style="display:none;"></span>
-                    <span id="backgroundLoadingStatus" style="display:none;"></span>
-
-                    <!-- OPTION A: Separate NetBox column (6 columns) -->
-                    <div class="card bg-light mb-3 border-primary">
-                        <div class="card-header bg-primary text-white py-2">
-                            <strong>OPTION A:</strong> Separate NetBox column (6 columns)
-                        </div>
-                        <div class="card-body py-3">
-                            <div class="row align-items-start">
-                                <!-- OWNERSHIP -->
-                                <div class="col-md-2">
-                                    <div class="summary-card">
-                                        <h6 class="text-muted mb-2" style="font-size: 0.75rem;">OWNERSHIP</h6>
-                                        <div class="d-flex justify-content-between mb-1">
-                                            <span class="text-success" style="font-size: 0.8rem;"><i class="fas fa-building"></i> NexGen:</span>
-                                            <strong id="optA-nexgen">-</strong>
-                                        </div>
-                                        <div class="d-flex justify-content-between mb-1">
-                                            <span class="text-secondary" style="font-size: 0.8rem;"><i class="fas fa-users"></i> Investors:</span>
-                                            <strong id="optA-investors">-</strong>
-                                        </div>
-                                        <hr class="my-1">
-                                        <div class="d-flex justify-content-between">
-                                            <span style="font-size: 0.8rem;"><strong>Total:</strong></span>
-                                            <strong id="optA-total">-</strong>
+                <!-- GPU Type Summary Cards -->
+                <div id="gpuTypeSummary" class="row mb-4" style="display: none;">
+                    <div class="col-12">
+                        <!-- OPTION A: Original LEFT + Rack stats RIGHT (with separate NetBox) -->
+                        <div class="card bg-light mb-3 border-primary">
+                            <div class="card-header bg-primary text-white py-1">
+                                <strong>OPTION A:</strong> Original stats + Rack stats (separate NetBox column)
+                            </div>
+                            <div class="card-body py-2">
+                                <div class="row align-items-start">
+                                    <!-- LEFT: Original GPU Usage -->
+                                    <div class="col-md-2">
+                                        <div class="d-flex align-items-center">
+                                            <div class="me-2"><i class="fas fa-microchip text-primary fa-lg"></i></div>
+                                            <div>
+                                                <h6 class="mb-0 text-primary" style="font-size: 0.75rem;">Total GPU Usage</h6>
+                                                <span class="badge bg-primary" style="font-size: 0.7rem;" id="totalGpuUsage">-</span>
+                                                <span class="badge bg-primary ms-1" style="font-size: 0.7rem;" id="gpuUsagePercentage">-</span>
+                                                <small class="text-muted d-block" style="font-size: 0.6rem;">Active GPUs</small>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <!-- NEXGEN AVAILABILITY -->
-                                <div class="col-md-2">
-                                    <div class="summary-card">
-                                        <h6 class="text-muted mb-2" style="font-size: 0.75rem;">NEXGEN AVAILABILITY</h6>
-                                        <div class="d-flex justify-content-between mb-1">
-                                            <span class="text-success" style="font-size: 0.8rem;"><i class="fas fa-server"></i> Empty:</span>
-                                            <strong id="optA-nexgen-empty">-</strong>
-                                        </div>
-                                        <div class="d-flex justify-content-between mb-1">
-                                            <span class="text-warning" style="font-size: 0.8rem;"><i class="fas fa-circle"></i> In Use:</span>
-                                            <strong id="optA-nexgen-inuse">-</strong>
-                                        </div>
-                                        <hr class="my-1">
-                                        <div class="d-flex justify-content-between">
-                                            <span class="text-danger" style="font-size: 0.8rem;"><i class="fas fa-tag"></i> For Sale:</span>
-                                            <strong id="optA-forsale">-</strong>
+                                    <!-- LEFT: NetBox -->
+                                    <div class="col-md-1">
+                                        <div class="d-flex align-items-center">
+                                            <div class="me-2"><i class="fas fa-database text-info fa-lg"></i></div>
+                                            <div>
+                                                <h6 class="mb-0 text-info" style="font-size: 0.75rem;">NetBox</h6>
+                                                <span class="badge bg-info" style="font-size: 0.7rem;" id="netboxInventoryCount">-</span>
+                                                <small class="text-muted d-block" style="font-size: 0.6rem;">Hosts</small>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <!-- INVESTOR AVAILABILITY -->
-                                <div class="col-md-2">
-                                    <div class="summary-card">
-                                        <h6 class="text-muted mb-2" style="font-size: 0.75rem;">INVESTOR AVAILABILITY</h6>
-                                        <div class="d-flex justify-content-between mb-1">
-                                            <span class="text-info" style="font-size: 0.8rem;"><i class="fas fa-server"></i> Empty:</span>
-                                            <strong id="optA-investor-empty">-</strong>
-                                        </div>
-                                        <div class="d-flex justify-content-between mb-1">
-                                            <span class="text-secondary" style="font-size: 0.8rem;"><i class="fas fa-circle"></i> In Use:</span>
-                                            <strong id="optA-investor-inuse">-</strong>
+                                    <!-- LEFT: Columns -->
+                                    <div class="col-md-1">
+                                        <div class="d-flex align-items-center">
+                                            <div class="me-2"><i class="fas fa-columns text-success fa-lg"></i></div>
+                                            <div>
+                                                <h6 class="mb-0 text-success" style="font-size: 0.75rem;">Columns</h6>
+                                                <span class="badge bg-success" style="font-size: 0.7rem;" id="columnsInventoryCount">-</span>
+                                                <small class="d-block" style="font-size: 0.6rem;" id="inventoryStatus"><i class="fas fa-sync-alt fa-spin text-muted"></i></small>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <!-- NETBOX INVENTORY -->
-                                <div class="col-md-2">
-                                    <div class="summary-card">
-                                        <h6 class="text-muted mb-2" style="font-size: 0.75rem;">NETBOX INVENTORY</h6>
-                                        <div class="d-flex justify-content-between mb-1">
-                                            <span class="text-info" style="font-size: 0.8rem;"><i class="fas fa-database"></i> Hosts:</span>
-                                            <strong id="optA-netbox">-</strong>
+                                    <!-- Divider -->
+                                    <div class="col-auto px-1"><div class="vr" style="height: 60px;"></div></div>
+                                    <!-- RIGHT: OWNERSHIP -->
+                                    <div class="col">
+                                        <h6 class="text-muted mb-1" style="font-size: 0.65rem;">OWNERSHIP</h6>
+                                        <div style="font-size: 0.7rem;">
+                                            <div class="d-flex justify-content-between"><span class="text-success"><i class="fas fa-building"></i> NexGen:</span><strong id="optA-nexgen">-</strong></div>
+                                            <div class="d-flex justify-content-between"><span class="text-secondary"><i class="fas fa-users"></i> Investors:</span><strong id="optA-investors">-</strong></div>
+                                            <div class="d-flex justify-content-between"><span><strong>Total:</strong></span><strong id="optA-total">-</strong></div>
                                         </div>
                                     </div>
-                                </div>
-                                <!-- STATUS -->
-                                <div class="col-md-2">
-                                    <div class="summary-card">
-                                        <h6 class="text-muted mb-2" style="font-size: 0.75rem;">STATUS</h6>
-                                        <div class="d-flex justify-content-between mb-1">
-                                            <span class="text-success" style="font-size: 0.8rem;"><i class="fas fa-check-circle"></i> Active:</span>
-                                            <strong id="optA-active">-</strong>
-                                        </div>
-                                        <div class="d-flex justify-content-between mb-1">
-                                            <span class="text-muted" style="font-size: 0.8rem;"><i class="fas fa-th"></i> Racks:</span>
-                                            <strong id="optA-racks">-</strong>
+                                    <!-- RIGHT: NEXGEN AVAIL -->
+                                    <div class="col">
+                                        <h6 class="text-muted mb-1" style="font-size: 0.65rem;">NEXGEN AVAIL</h6>
+                                        <div style="font-size: 0.7rem;">
+                                            <div class="d-flex justify-content-between"><span class="text-success"><i class="fas fa-server"></i> Empty:</span><strong id="optA-nexgen-empty">-</strong></div>
+                                            <div class="d-flex justify-content-between"><span class="text-warning"><i class="fas fa-circle"></i> In Use:</span><strong id="optA-nexgen-inuse">-</strong></div>
+                                            <div class="d-flex justify-content-between"><span class="text-danger"><i class="fas fa-tag"></i> For Sale:</span><strong id="optA-forsale">-</strong></div>
                                         </div>
                                     </div>
-                                </div>
-                                <!-- GPU BREAKDOWN -->
-                                <div class="col-md-2">
-                                    <div class="summary-card">
-                                        <h6 class="text-muted mb-2" style="font-size: 0.75rem;">GPU BREAKDOWN</h6>
-                                        <div id="optA-gpu-breakdown" class="gpu-breakdown" style="font-size: 0.8rem;">-</div>
+                                    <!-- RIGHT: INVESTOR AVAIL -->
+                                    <div class="col">
+                                        <h6 class="text-muted mb-1" style="font-size: 0.65rem;">INVESTOR AVAIL</h6>
+                                        <div style="font-size: 0.7rem;">
+                                            <div class="d-flex justify-content-between"><span class="text-info"><i class="fas fa-server"></i> Empty:</span><strong id="optA-investor-empty">-</strong></div>
+                                            <div class="d-flex justify-content-between"><span class="text-secondary"><i class="fas fa-circle"></i> In Use:</span><strong id="optA-investor-inuse">-</strong></div>
+                                        </div>
+                                    </div>
+                                    <!-- RIGHT: NETBOX (separate) -->
+                                    <div class="col-auto">
+                                        <h6 class="text-muted mb-1" style="font-size: 0.65rem;">NETBOX</h6>
+                                        <div style="font-size: 0.7rem;">
+                                            <div class="d-flex justify-content-between"><span class="text-info"><i class="fas fa-database"></i> Hosts:</span><strong id="optA-netbox">-</strong></div>
+                                        </div>
+                                    </div>
+                                    <!-- RIGHT: STATUS -->
+                                    <div class="col">
+                                        <h6 class="text-muted mb-1" style="font-size: 0.65rem;">STATUS</h6>
+                                        <div style="font-size: 0.7rem;">
+                                            <div class="d-flex justify-content-between"><span class="text-success"><i class="fas fa-check-circle"></i> Active:</span><strong id="optA-active">-</strong></div>
+                                            <div class="d-flex justify-content-between"><span class="text-muted"><i class="fas fa-th"></i> Racks:</span><strong id="optA-racks">-</strong></div>
+                                        </div>
+                                    </div>
+                                    <!-- RIGHT: GPU BREAKDOWN -->
+                                    <div class="col">
+                                        <h6 class="text-muted mb-1" style="font-size: 0.65rem;">GPU TYPE</h6>
+                                        <div id="optA-gpu-breakdown" style="font-size: 0.7rem;">-</div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- OPTION B: NetBox in OWNERSHIP section (5 columns) -->
-                    <div class="card bg-light mb-3 border-success">
-                        <div class="card-header bg-success text-white py-2">
-                            <strong>OPTION B:</strong> NetBox in OWNERSHIP section (5 columns)
-                        </div>
-                        <div class="card-body py-3">
-                            <div class="row align-items-start">
-                                <!-- OWNERSHIP with NetBox -->
-                                <div class="col-md-2">
-                                    <div class="summary-card">
-                                        <h6 class="text-muted mb-2" style="font-size: 0.75rem;">OWNERSHIP</h6>
-                                        <div class="d-flex justify-content-between mb-1">
-                                            <span class="text-success" style="font-size: 0.8rem;"><i class="fas fa-building"></i> NexGen:</span>
-                                            <strong id="optB-nexgen">-</strong>
-                                        </div>
-                                        <div class="d-flex justify-content-between mb-1">
-                                            <span class="text-secondary" style="font-size: 0.8rem;"><i class="fas fa-users"></i> Investors:</span>
-                                            <strong id="optB-investors">-</strong>
-                                        </div>
-                                        <hr class="my-1">
-                                        <div class="d-flex justify-content-between">
-                                            <span style="font-size: 0.8rem;"><strong>Total:</strong></span>
-                                            <strong id="optB-total">-</strong>
-                                        </div>
-                                        <hr class="my-1">
-                                        <div class="d-flex justify-content-between">
-                                            <span class="text-info" style="font-size: 0.8rem;"><i class="fas fa-database"></i> NetBox:</span>
-                                            <strong id="optB-netbox">-</strong>
+                        <!-- OPTION B: Original LEFT + Rack stats RIGHT (NetBox in OWNERSHIP) -->
+                        <div class="card bg-light mb-3 border-success">
+                            <div class="card-header bg-success text-white py-1">
+                                <strong>OPTION B:</strong> Original stats + Rack stats (NetBox in OWNERSHIP)
+                            </div>
+                            <div class="card-body py-2">
+                                <div class="row align-items-start">
+                                    <!-- LEFT: Original GPU Usage -->
+                                    <div class="col-md-2">
+                                        <div class="d-flex align-items-center">
+                                            <div class="me-2"><i class="fas fa-microchip text-primary fa-lg"></i></div>
+                                            <div>
+                                                <h6 class="mb-0 text-primary" style="font-size: 0.75rem;">Total GPU Usage</h6>
+                                                <span class="badge bg-primary" style="font-size: 0.7rem;">367/608</span>
+                                                <span class="badge bg-primary ms-1" style="font-size: 0.7rem;">60%</span>
+                                                <small class="text-muted d-block" style="font-size: 0.6rem;">Active GPUs</small>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <!-- NEXGEN AVAILABILITY -->
-                                <div class="col-md-2">
-                                    <div class="summary-card">
-                                        <h6 class="text-muted mb-2" style="font-size: 0.75rem;">NEXGEN AVAILABILITY</h6>
-                                        <div class="d-flex justify-content-between mb-1">
-                                            <span class="text-success" style="font-size: 0.8rem;"><i class="fas fa-server"></i> Empty:</span>
-                                            <strong id="optB-nexgen-empty">-</strong>
-                                        </div>
-                                        <div class="d-flex justify-content-between mb-1">
-                                            <span class="text-warning" style="font-size: 0.8rem;"><i class="fas fa-circle"></i> In Use:</span>
-                                            <strong id="optB-nexgen-inuse">-</strong>
-                                        </div>
-                                        <hr class="my-1">
-                                        <div class="d-flex justify-content-between">
-                                            <span class="text-danger" style="font-size: 0.8rem;"><i class="fas fa-tag"></i> For Sale:</span>
-                                            <strong id="optB-forsale">-</strong>
+                                    <!-- LEFT: NetBox -->
+                                    <div class="col-md-1">
+                                        <div class="d-flex align-items-center">
+                                            <div class="me-2"><i class="fas fa-database text-info fa-lg"></i></div>
+                                            <div>
+                                                <h6 class="mb-0 text-info" style="font-size: 0.75rem;">NetBox</h6>
+                                                <span class="badge bg-info" style="font-size: 0.7rem;">76</span>
+                                                <small class="text-muted d-block" style="font-size: 0.6rem;">Hosts</small>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <!-- INVESTOR AVAILABILITY -->
-                                <div class="col-md-2">
-                                    <div class="summary-card">
-                                        <h6 class="text-muted mb-2" style="font-size: 0.75rem;">INVESTOR AVAILABILITY</h6>
-                                        <div class="d-flex justify-content-between mb-1">
-                                            <span class="text-info" style="font-size: 0.8rem;"><i class="fas fa-server"></i> Empty:</span>
-                                            <strong id="optB-investor-empty">-</strong>
-                                        </div>
-                                        <div class="d-flex justify-content-between mb-1">
-                                            <span class="text-secondary" style="font-size: 0.8rem;"><i class="fas fa-circle"></i> In Use:</span>
-                                            <strong id="optB-investor-inuse">-</strong>
+                                    <!-- LEFT: Columns -->
+                                    <div class="col-md-1">
+                                        <div class="d-flex align-items-center">
+                                            <div class="me-2"><i class="fas fa-columns text-success fa-lg"></i></div>
+                                            <div>
+                                                <h6 class="mb-0 text-success" style="font-size: 0.75rem;">Columns</h6>
+                                                <span class="badge bg-success" style="font-size: 0.7rem;">76</span>
+                                                <small class="d-block text-success" style="font-size: 0.6rem;"><i class="fas fa-check"></i> Match</small>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <!-- STATUS -->
-                                <div class="col-md-2">
-                                    <div class="summary-card">
-                                        <h6 class="text-muted mb-2" style="font-size: 0.75rem;">STATUS</h6>
-                                        <div class="d-flex justify-content-between mb-1">
-                                            <span class="text-success" style="font-size: 0.8rem;"><i class="fas fa-check-circle"></i> Active:</span>
-                                            <strong id="optB-active">-</strong>
-                                        </div>
-                                        <div class="d-flex justify-content-between mb-1">
-                                            <span class="text-muted" style="font-size: 0.8rem;"><i class="fas fa-th"></i> Racks:</span>
-                                            <strong id="optB-racks">-</strong>
+                                    <!-- Divider -->
+                                    <div class="col-auto px-1"><div class="vr" style="height: 70px;"></div></div>
+                                    <!-- RIGHT: OWNERSHIP with NetBox -->
+                                    <div class="col">
+                                        <h6 class="text-muted mb-1" style="font-size: 0.65rem;">OWNERSHIP</h6>
+                                        <div style="font-size: 0.7rem;">
+                                            <div class="d-flex justify-content-between"><span class="text-success"><i class="fas fa-building"></i> NexGen:</span><strong id="optB-nexgen">-</strong></div>
+                                            <div class="d-flex justify-content-between"><span class="text-secondary"><i class="fas fa-users"></i> Investors:</span><strong id="optB-investors">-</strong></div>
+                                            <div class="d-flex justify-content-between"><span><strong>Total:</strong></span><strong id="optB-total">-</strong></div>
+                                            <div class="d-flex justify-content-between"><span class="text-info"><i class="fas fa-database"></i> NetBox:</span><strong id="optB-netbox">-</strong></div>
                                         </div>
                                     </div>
-                                </div>
-                                <!-- GPU BREAKDOWN -->
-                                <div class="col-md-4">
-                                    <div class="summary-card">
-                                        <h6 class="text-muted mb-2" style="font-size: 0.75rem;">GPU BREAKDOWN</h6>
-                                        <div id="optB-gpu-breakdown" class="gpu-breakdown" style="font-size: 0.8rem;">-</div>
+                                    <!-- RIGHT: NEXGEN AVAIL -->
+                                    <div class="col">
+                                        <h6 class="text-muted mb-1" style="font-size: 0.65rem;">NEXGEN AVAIL</h6>
+                                        <div style="font-size: 0.7rem;">
+                                            <div class="d-flex justify-content-between"><span class="text-success"><i class="fas fa-server"></i> Empty:</span><strong id="optB-nexgen-empty">-</strong></div>
+                                            <div class="d-flex justify-content-between"><span class="text-warning"><i class="fas fa-circle"></i> In Use:</span><strong id="optB-nexgen-inuse">-</strong></div>
+                                            <div class="d-flex justify-content-between"><span class="text-danger"><i class="fas fa-tag"></i> For Sale:</span><strong id="optB-forsale">-</strong></div>
+                                        </div>
+                                    </div>
+                                    <!-- RIGHT: INVESTOR AVAIL -->
+                                    <div class="col">
+                                        <h6 class="text-muted mb-1" style="font-size: 0.65rem;">INVESTOR AVAIL</h6>
+                                        <div style="font-size: 0.7rem;">
+                                            <div class="d-flex justify-content-between"><span class="text-info"><i class="fas fa-server"></i> Empty:</span><strong id="optB-investor-empty">-</strong></div>
+                                            <div class="d-flex justify-content-between"><span class="text-secondary"><i class="fas fa-circle"></i> In Use:</span><strong id="optB-investor-inuse">-</strong></div>
+                                        </div>
+                                    </div>
+                                    <!-- RIGHT: STATUS -->
+                                    <div class="col">
+                                        <h6 class="text-muted mb-1" style="font-size: 0.65rem;">STATUS</h6>
+                                        <div style="font-size: 0.7rem;">
+                                            <div class="d-flex justify-content-between"><span class="text-success"><i class="fas fa-check-circle"></i> Active:</span><strong id="optB-active">-</strong></div>
+                                            <div class="d-flex justify-content-between"><span class="text-muted"><i class="fas fa-th"></i> Racks:</span><strong id="optB-racks">-</strong></div>
+                                        </div>
+                                    </div>
+                                    <!-- RIGHT: GPU BREAKDOWN -->
+                                    <div class="col-2">
+                                        <h6 class="text-muted mb-1" style="font-size: 0.65rem;">GPU TYPE</h6>
+                                        <div id="optB-gpu-breakdown" style="font-size: 0.7rem;">-</div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- OPTION C: NetBox in STATUS section (5 columns) -->
-                    <div class="card bg-light mb-3 border-warning">
-                        <div class="card-header bg-warning text-dark py-2">
-                            <strong>OPTION C:</strong> NetBox in STATUS section (5 columns)
-                        </div>
-                        <div class="card-body py-3">
-                            <div class="row align-items-start">
-                                <!-- OWNERSHIP -->
-                                <div class="col-md-2">
-                                    <div class="summary-card">
-                                        <h6 class="text-muted mb-2" style="font-size: 0.75rem;">OWNERSHIP</h6>
-                                        <div class="d-flex justify-content-between mb-1">
-                                            <span class="text-success" style="font-size: 0.8rem;"><i class="fas fa-building"></i> NexGen:</span>
-                                            <strong id="optC-nexgen">-</strong>
-                                        </div>
-                                        <div class="d-flex justify-content-between mb-1">
-                                            <span class="text-secondary" style="font-size: 0.8rem;"><i class="fas fa-users"></i> Investors:</span>
-                                            <strong id="optC-investors">-</strong>
-                                        </div>
-                                        <hr class="my-1">
-                                        <div class="d-flex justify-content-between">
-                                            <span style="font-size: 0.8rem;"><strong>Total:</strong></span>
-                                            <strong id="optC-total">-</strong>
+                        <!-- OPTION C: Original LEFT + Rack stats RIGHT (NetBox in STATUS) -->
+                        <div class="card bg-light mb-3 border-warning">
+                            <div class="card-header bg-warning text-dark py-1">
+                                <strong>OPTION C:</strong> Original stats + Rack stats (NetBox in STATUS)
+                            </div>
+                            <div class="card-body py-2">
+                                <div class="row align-items-start">
+                                    <!-- LEFT: Original GPU Usage -->
+                                    <div class="col-md-2">
+                                        <div class="d-flex align-items-center">
+                                            <div class="me-2"><i class="fas fa-microchip text-primary fa-lg"></i></div>
+                                            <div>
+                                                <h6 class="mb-0 text-primary" style="font-size: 0.75rem;">Total GPU Usage</h6>
+                                                <span class="badge bg-primary" style="font-size: 0.7rem;">367/608</span>
+                                                <span class="badge bg-primary ms-1" style="font-size: 0.7rem;">60%</span>
+                                                <small class="text-muted d-block" style="font-size: 0.6rem;">Active GPUs</small>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <!-- NEXGEN AVAILABILITY -->
-                                <div class="col-md-2">
-                                    <div class="summary-card">
-                                        <h6 class="text-muted mb-2" style="font-size: 0.75rem;">NEXGEN AVAILABILITY</h6>
-                                        <div class="d-flex justify-content-between mb-1">
-                                            <span class="text-success" style="font-size: 0.8rem;"><i class="fas fa-server"></i> Empty:</span>
-                                            <strong id="optC-nexgen-empty">-</strong>
-                                        </div>
-                                        <div class="d-flex justify-content-between mb-1">
-                                            <span class="text-warning" style="font-size: 0.8rem;"><i class="fas fa-circle"></i> In Use:</span>
-                                            <strong id="optC-nexgen-inuse">-</strong>
-                                        </div>
-                                        <hr class="my-1">
-                                        <div class="d-flex justify-content-between">
-                                            <span class="text-danger" style="font-size: 0.8rem;"><i class="fas fa-tag"></i> For Sale:</span>
-                                            <strong id="optC-forsale">-</strong>
+                                    <!-- LEFT: NetBox -->
+                                    <div class="col-md-1">
+                                        <div class="d-flex align-items-center">
+                                            <div class="me-2"><i class="fas fa-database text-info fa-lg"></i></div>
+                                            <div>
+                                                <h6 class="mb-0 text-info" style="font-size: 0.75rem;">NetBox</h6>
+                                                <span class="badge bg-info" style="font-size: 0.7rem;">76</span>
+                                                <small class="text-muted d-block" style="font-size: 0.6rem;">Hosts</small>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <!-- INVESTOR AVAILABILITY -->
-                                <div class="col-md-2">
-                                    <div class="summary-card">
-                                        <h6 class="text-muted mb-2" style="font-size: 0.75rem;">INVESTOR AVAILABILITY</h6>
-                                        <div class="d-flex justify-content-between mb-1">
-                                            <span class="text-info" style="font-size: 0.8rem;"><i class="fas fa-server"></i> Empty:</span>
-                                            <strong id="optC-investor-empty">-</strong>
-                                        </div>
-                                        <div class="d-flex justify-content-between mb-1">
-                                            <span class="text-secondary" style="font-size: 0.8rem;"><i class="fas fa-circle"></i> In Use:</span>
-                                            <strong id="optC-investor-inuse">-</strong>
+                                    <!-- LEFT: Columns -->
+                                    <div class="col-md-1">
+                                        <div class="d-flex align-items-center">
+                                            <div class="me-2"><i class="fas fa-columns text-success fa-lg"></i></div>
+                                            <div>
+                                                <h6 class="mb-0 text-success" style="font-size: 0.75rem;">Columns</h6>
+                                                <span class="badge bg-success" style="font-size: 0.7rem;">76</span>
+                                                <small class="d-block text-success" style="font-size: 0.6rem;"><i class="fas fa-check"></i> Match</small>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <!-- STATUS with NetBox -->
-                                <div class="col-md-2">
-                                    <div class="summary-card">
-                                        <h6 class="text-muted mb-2" style="font-size: 0.75rem;">STATUS</h6>
-                                        <div class="d-flex justify-content-between mb-1">
-                                            <span class="text-success" style="font-size: 0.8rem;"><i class="fas fa-check-circle"></i> Active:</span>
-                                            <strong id="optC-active">-</strong>
-                                        </div>
-                                        <div class="d-flex justify-content-between mb-1">
-                                            <span class="text-muted" style="font-size: 0.8rem;"><i class="fas fa-th"></i> Racks:</span>
-                                            <strong id="optC-racks">-</strong>
-                                        </div>
-                                        <hr class="my-1">
-                                        <div class="d-flex justify-content-between">
-                                            <span class="text-info" style="font-size: 0.8rem;"><i class="fas fa-database"></i> NetBox:</span>
-                                            <strong id="optC-netbox">-</strong>
+                                    <!-- Divider -->
+                                    <div class="col-auto px-1"><div class="vr" style="height: 70px;"></div></div>
+                                    <!-- RIGHT: OWNERSHIP -->
+                                    <div class="col">
+                                        <h6 class="text-muted mb-1" style="font-size: 0.65rem;">OWNERSHIP</h6>
+                                        <div style="font-size: 0.7rem;">
+                                            <div class="d-flex justify-content-between"><span class="text-success"><i class="fas fa-building"></i> NexGen:</span><strong id="optC-nexgen">-</strong></div>
+                                            <div class="d-flex justify-content-between"><span class="text-secondary"><i class="fas fa-users"></i> Investors:</span><strong id="optC-investors">-</strong></div>
+                                            <div class="d-flex justify-content-between"><span><strong>Total:</strong></span><strong id="optC-total">-</strong></div>
                                         </div>
                                     </div>
-                                </div>
-                                <!-- GPU BREAKDOWN -->
-                                <div class="col-md-4">
-                                    <div class="summary-card">
-                                        <h6 class="text-muted mb-2" style="font-size: 0.75rem;">GPU BREAKDOWN</h6>
-                                        <div id="optC-gpu-breakdown" class="gpu-breakdown" style="font-size: 0.8rem;">-</div>
+                                    <!-- RIGHT: NEXGEN AVAIL -->
+                                    <div class="col">
+                                        <h6 class="text-muted mb-1" style="font-size: 0.65rem;">NEXGEN AVAIL</h6>
+                                        <div style="font-size: 0.7rem;">
+                                            <div class="d-flex justify-content-between"><span class="text-success"><i class="fas fa-server"></i> Empty:</span><strong id="optC-nexgen-empty">-</strong></div>
+                                            <div class="d-flex justify-content-between"><span class="text-warning"><i class="fas fa-circle"></i> In Use:</span><strong id="optC-nexgen-inuse">-</strong></div>
+                                            <div class="d-flex justify-content-between"><span class="text-danger"><i class="fas fa-tag"></i> For Sale:</span><strong id="optC-forsale">-</strong></div>
+                                        </div>
+                                    </div>
+                                    <!-- RIGHT: INVESTOR AVAIL -->
+                                    <div class="col">
+                                        <h6 class="text-muted mb-1" style="font-size: 0.65rem;">INVESTOR AVAIL</h6>
+                                        <div style="font-size: 0.7rem;">
+                                            <div class="d-flex justify-content-between"><span class="text-info"><i class="fas fa-server"></i> Empty:</span><strong id="optC-investor-empty">-</strong></div>
+                                            <div class="d-flex justify-content-between"><span class="text-secondary"><i class="fas fa-circle"></i> In Use:</span><strong id="optC-investor-inuse">-</strong></div>
+                                        </div>
+                                    </div>
+                                    <!-- RIGHT: STATUS with NetBox -->
+                                    <div class="col">
+                                        <h6 class="text-muted mb-1" style="font-size: 0.65rem;">STATUS</h6>
+                                        <div style="font-size: 0.7rem;">
+                                            <div class="d-flex justify-content-between"><span class="text-success"><i class="fas fa-check-circle"></i> Active:</span><strong id="optC-active">-</strong></div>
+                                            <div class="d-flex justify-content-between"><span class="text-muted"><i class="fas fa-th"></i> Racks:</span><strong id="optC-racks">-</strong></div>
+                                            <div class="d-flex justify-content-between"><span class="text-info"><i class="fas fa-database"></i> NetBox:</span><strong id="optC-netbox">-</strong></div>
+                                        </div>
+                                    </div>
+                                    <!-- RIGHT: GPU BREAKDOWN -->
+                                    <div class="col-2">
+                                        <h6 class="text-muted mb-1" style="font-size: 0.65rem;">GPU TYPE</h6>
+                                        <div id="optC-gpu-breakdown" style="font-size: 0.7rem;">-</div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Hidden elements for backward compatibility -->
+                        <span id="selectedGpuTypeName" style="display:none;"></span>
+                        <span id="backgroundLoadingStatus" style="display:none;"></span>
                     </div>
                 </div>
 
