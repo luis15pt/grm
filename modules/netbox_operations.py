@@ -153,16 +153,27 @@ def get_rack_visualization_data(site_filter=None, gpu_type_filter=None, owner_fi
         parallel_data = get_all_data_parallel()
 
         # Collect all hosts from all GPU types
+        # The parallel_data structure is: {gpu_type: {pool_name: {hosts: [...]}}}
+        # where pool_name is one of: runpod, spot, ondemand, contract, outofstock
         all_hosts = []
         for gpu_type_key, gpu_data in parallel_data.items():
             if gpu_type_key.startswith('_'):
                 continue  # Skip internal keys
-            hosts = gpu_data.get('hosts', [])
-            for host in hosts:
-                # Add gpu_type to host data if not present
-                if 'gpu_type' not in host or not host.get('gpu_type'):
-                    host['gpu_type'] = gpu_type_key
-                all_hosts.append(host)
+            if not isinstance(gpu_data, dict):
+                continue
+
+            # Iterate over pools within each GPU type
+            for pool_name, pool_data in gpu_data.items():
+                if not isinstance(pool_data, dict):
+                    continue
+                hosts = pool_data.get('hosts', [])
+                if not isinstance(hosts, list):
+                    continue
+                for host in hosts:
+                    # Add gpu_type to host data if not present
+                    if 'gpu_type' not in host or not host.get('gpu_type'):
+                        host['gpu_type'] = gpu_type_key
+                    all_hosts.append(host)
 
         print(f"📊 Loaded {len(all_hosts)} hosts from parallel agents")
 

@@ -196,13 +196,18 @@ def register_routes(app):
             
             config = gpu_data['config']
             all_hosts = gpu_data['hosts']
-            
+
+            # DEBUG: Log the config variants to understand variant matching
+            print(f"🔍 DEBUG VARIANTS: config['ondemand_variants'] = {config.get('ondemand_variants', [])}")
+            sample_hosts = all_hosts[:5] if all_hosts else []
+            print(f"🔍 DEBUG VARIANTS: Sample host aggregates = {[(h.get('hostname'), h.get('aggregate'), h.get('_assignment')) for h in sample_hosts]}")
+
             # Check if new outofstock structure exists
             outofstock_hosts = []
             if 'outofstock' in gpu_data:
                 outofstock_hosts = gpu_data['outofstock'].get('hosts', [])
                 print(f"🔍 DEBUG: Found {len(outofstock_hosts)} outofstock hosts in parallel data")
-            
+
             # Organize hosts by aggregate type from parallel data
             ondemand_hosts = []
             runpod_hosts = []
@@ -210,17 +215,32 @@ def register_routes(app):
             contract_hosts = []
             ondemand_host_variants = {}
             contract_host_mappings = {}  # hostname -> contract info
-            
+
             for host_data in all_hosts:
                 hostname = host_data['hostname']
                 aggregate = host_data['aggregate']
+                assignment = host_data.get('_assignment')  # Get the assignment from parallel agents
 
-                # Determine aggregate type
-                if config.get('runpod') and aggregate == config['runpod']:
+                # Determine aggregate type - use _assignment as primary source of truth
+                if assignment == 'runpod' or (config.get('runpod') and aggregate == config['runpod']):
                     runpod_hosts.append(hostname)
-                elif config.get('spot') and aggregate == config['spot']:
+                elif assignment == 'spot' or (config.get('spot') and aggregate == config['spot']):
                     spot_hosts.append(hostname)
+                elif assignment == 'ondemand':
+                    # Host is assigned to on-demand - find matching variant for the variant field
+                    ondemand_hosts.append(hostname)
+                    matched_variant = False
+                    if config.get('ondemand_variants'):
+                        for variant in config['ondemand_variants']:
+                            if aggregate == variant['aggregate']:
+                                ondemand_host_variants[hostname] = variant['variant']
+                                matched_variant = True
+                                break
+                    # Fallback: use aggregate name as variant if no match found
+                    if not matched_variant and aggregate:
+                        ondemand_host_variants[hostname] = aggregate
                 elif config.get('ondemand_variants'):
+                    # Fallback for hosts without _assignment - check variant aggregates
                     for variant in config['ondemand_variants']:
                         if aggregate == variant['aggregate']:
                             ondemand_hosts.append(hostname)
@@ -228,17 +248,23 @@ def register_routes(app):
                             break
 
                 # Check contracts separately (not elif - contracts can coexist with other types)
-                if config.get('contracts'):
-                    for contract in config['contracts']:
-                        if aggregate == contract['aggregate']:
-                            contract_hosts.append(hostname)
-                            # Store contract info for this host (similar to ondemand variants)
-                            contract_host_mappings[hostname] = {
-                                'contract_aggregate': contract['aggregate'],
-                                'contract_name': contract['name']
-                            }
-                            break
+                if assignment == 'contract' or config.get('contracts'):
+                    if config.get('contracts'):
+                        for contract in config['contracts']:
+                            if aggregate == contract['aggregate']:
+                                if hostname not in contract_hosts:  # Avoid duplicates
+                                    contract_hosts.append(hostname)
+                                # Store contract info for this host (similar to ondemand variants)
+                                contract_host_mappings[hostname] = {
+                                    'contract_aggregate': contract['aggregate'],
+                                    'contract_name': contract['name']
+                                }
+                                break
             
+            # DEBUG: Log variant matching results
+            print(f"🔍 DEBUG VARIANTS: Hosts matched to variants: {len(ondemand_host_variants)}")
+            print(f"🔍 DEBUG VARIANTS: ondemand_host_variants sample = {dict(list(ondemand_host_variants.items())[:5])}")
+
             def process_hosts_from_parallel_data(host_list, aggregate_type):
                 """Process hosts using data from parallel agents"""
                 processed = []
