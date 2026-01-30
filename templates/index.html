@@ -251,8 +251,8 @@
                                             <div class="me-2"><i class="fas fa-microchip text-primary fa-lg"></i></div>
                                             <div>
                                                 <h6 class="mb-0 text-primary" style="font-size: 0.75rem;">Total GPU Usage</h6>
-                                                <span class="badge bg-primary" style="font-size: 0.7rem;">367/608</span>
-                                                <span class="badge bg-primary ms-1" style="font-size: 0.7rem;">60%</span>
+                                                <span class="badge bg-primary sync-gpu-usage" style="font-size: 0.7rem;">-</span>
+                                                <span class="badge bg-primary ms-1 sync-gpu-pct" style="font-size: 0.7rem;">-</span>
                                                 <small class="text-muted d-block" style="font-size: 0.6rem;">Active GPUs</small>
                                             </div>
                                         </div>
@@ -263,7 +263,7 @@
                                             <div class="me-2"><i class="fas fa-database text-info fa-lg"></i></div>
                                             <div>
                                                 <h6 class="mb-0 text-info" style="font-size: 0.75rem;">NetBox</h6>
-                                                <span class="badge bg-info" style="font-size: 0.7rem;">76</span>
+                                                <span class="badge bg-info sync-netbox" style="font-size: 0.7rem;">-</span>
                                                 <small class="text-muted d-block" style="font-size: 0.6rem;">Hosts</small>
                                             </div>
                                         </div>
@@ -274,8 +274,8 @@
                                             <div class="me-2"><i class="fas fa-columns text-success fa-lg"></i></div>
                                             <div>
                                                 <h6 class="mb-0 text-success" style="font-size: 0.75rem;">Columns</h6>
-                                                <span class="badge bg-success" style="font-size: 0.7rem;">76</span>
-                                                <small class="d-block text-success" style="font-size: 0.6rem;"><i class="fas fa-check"></i> Match</small>
+                                                <span class="badge bg-success sync-columns" style="font-size: 0.7rem;">-</span>
+                                                <small class="d-block sync-status" style="font-size: 0.6rem;"><i class="fas fa-sync-alt fa-spin text-muted"></i></small>
                                             </div>
                                         </div>
                                     </div>
@@ -338,8 +338,8 @@
                                             <div class="me-2"><i class="fas fa-microchip text-primary fa-lg"></i></div>
                                             <div>
                                                 <h6 class="mb-0 text-primary" style="font-size: 0.75rem;">Total GPU Usage</h6>
-                                                <span class="badge bg-primary" style="font-size: 0.7rem;">367/608</span>
-                                                <span class="badge bg-primary ms-1" style="font-size: 0.7rem;">60%</span>
+                                                <span class="badge bg-primary sync-gpu-usage" style="font-size: 0.7rem;">-</span>
+                                                <span class="badge bg-primary ms-1 sync-gpu-pct" style="font-size: 0.7rem;">-</span>
                                                 <small class="text-muted d-block" style="font-size: 0.6rem;">Active GPUs</small>
                                             </div>
                                         </div>
@@ -350,7 +350,7 @@
                                             <div class="me-2"><i class="fas fa-database text-info fa-lg"></i></div>
                                             <div>
                                                 <h6 class="mb-0 text-info" style="font-size: 0.75rem;">NetBox</h6>
-                                                <span class="badge bg-info" style="font-size: 0.7rem;">76</span>
+                                                <span class="badge bg-info sync-netbox" style="font-size: 0.7rem;">-</span>
                                                 <small class="text-muted d-block" style="font-size: 0.6rem;">Hosts</small>
                                             </div>
                                         </div>
@@ -361,8 +361,8 @@
                                             <div class="me-2"><i class="fas fa-columns text-success fa-lg"></i></div>
                                             <div>
                                                 <h6 class="mb-0 text-success" style="font-size: 0.75rem;">Columns</h6>
-                                                <span class="badge bg-success" style="font-size: 0.7rem;">76</span>
-                                                <small class="d-block text-success" style="font-size: 0.6rem;"><i class="fas fa-check"></i> Match</small>
+                                                <span class="badge bg-success sync-columns" style="font-size: 0.7rem;">-</span>
+                                                <small class="d-block sync-status" style="font-size: 0.6rem;"><i class="fas fa-sync-alt fa-spin text-muted"></i></small>
                                             </div>
                                         </div>
                                     </div>
@@ -415,6 +415,54 @@
                         <!-- Hidden elements for backward compatibility -->
                         <span id="selectedGpuTypeName" style="display:none;"></span>
                         <span id="backgroundLoadingStatus" style="display:none;"></span>
+
+                        <!-- Sync script to copy values from Option A to Options B and C -->
+                        <script>
+                        (function() {
+                            function syncValues() {
+                                // Sync GPU Usage
+                                const gpuUsage = document.getElementById('totalGpuUsage');
+                                if (gpuUsage) {
+                                    document.querySelectorAll('.sync-gpu-usage').forEach(el => {
+                                        el.textContent = gpuUsage.textContent;
+                                    });
+                                }
+                                // Sync GPU Percentage
+                                const gpuPct = document.getElementById('gpuUsagePercentage');
+                                if (gpuPct) {
+                                    document.querySelectorAll('.sync-gpu-pct').forEach(el => {
+                                        el.textContent = gpuPct.textContent;
+                                    });
+                                }
+                                // Sync NetBox
+                                const netbox = document.getElementById('netboxInventoryCount');
+                                if (netbox) {
+                                    document.querySelectorAll('.sync-netbox').forEach(el => {
+                                        el.textContent = netbox.textContent;
+                                    });
+                                }
+                                // Sync Columns
+                                const columns = document.getElementById('columnsInventoryCount');
+                                if (columns) {
+                                    document.querySelectorAll('.sync-columns').forEach(el => {
+                                        el.textContent = columns.textContent;
+                                    });
+                                }
+                                // Sync Status
+                                const status = document.getElementById('inventoryStatus');
+                                if (status) {
+                                    document.querySelectorAll('.sync-status').forEach(el => {
+                                        el.innerHTML = status.innerHTML;
+                                    });
+                                }
+                            }
+
+                            // Initial sync after DOM loaded
+                            document.addEventListener('DOMContentLoaded', () => {
+                                setInterval(syncValues, 500);
+                            });
+                        })();
+                        </script>
                     </div>
                 </div>
 
