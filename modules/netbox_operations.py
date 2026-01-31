@@ -260,7 +260,8 @@ def get_rack_visualization_data(site_filter=None, gpu_type_filter=None, owner_fi
                 "vm_count": host.get('vm_count', 0),
                 "gpu_used": host.get('gpu_used', 0),
                 "gpu_capacity": host.get('gpu_capacity', 8),
-                "aggregate": host.get('aggregate', '')
+                "aggregate": host.get('aggregate', ''),
+                "vm_gpu_breakdown": host.get('vm_gpu_breakdown', [])
             }
 
             # Update summary counters

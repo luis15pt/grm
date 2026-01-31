@@ -532,6 +532,25 @@ class RackView {
         const isInUse = gpuUsed > 0;
         const usagePercent = gpuCapacity > 0 ? (gpuUsed / gpuCapacity) : 0;
         const vmCount = device.vm_count || 0;
+        const vmGpuBreakdown = device.vm_gpu_breakdown || [];
+        const aggregate = device.aggregate || '';
+
+        // Generate segmented bar for VM GPU distribution
+        const segmentedBar = vmGpuBreakdown.length > 0
+            ? `<div class="gpu-segment-bar">
+                ${vmGpuBreakdown.map((gpus, i) =>
+                    `<div class="gpu-segment" style="width: ${(gpus / gpuCapacity) * 100}%" title="VM ${i+1}: ${gpus} GPU${gpus > 1 ? 's' : ''}"></div>`
+                ).join('')}
+               </div>`
+            : '';
+
+        // Platform icon based on aggregate
+        let platformIcon = '';
+        if (aggregate.includes('-runpod')) {
+            platformIcon = '<img src="https://cdn.prod.website-files.com/67d20fb9f56ff2ec6a7a657d/685b36ec78014e86b337b96b_runpod-logo-square.webp" class="platform-icon" title="Runpod">';
+        } else if (aggregate === 'RTX-A6000-n3' || aggregate === 'A100-n3') {
+            platformIcon = '<img src="https://26282475.fs1.hubspotusercontent-eu1.net/hubfs/26282475/hyperstack_2023/nextg_fav.ico" class="platform-icon" title="Hyperstack">';
+        }
 
         // Determine device class based on owner, status, and GPU usage
         let deviceClass = 'rack-device';
@@ -598,9 +617,11 @@ class RackView {
                 <div class="device-stats">
                     <span class="device-gpu-usage">${gpuUsageRatio}</span>
                     ${vmCount > 0 ? `<span class="rack-vm-button" data-hostname="${device.hostname}" data-vm-count="${vmCount}" title="View running VMs (${vmCount})">💻</span>` : ''}
+                    ${platformIcon}
                     ${device.nvlinks ? '<i class="fas fa-link nvlink-icon"></i>' : ''}
                     ${statusIcon}
                 </div>
+                ${segmentedBar}
             </div>
         `;
     }

@@ -530,9 +530,10 @@ def gpu_info_agent():
                 except Exception as e:
                     print(f"❌ GPU info failed for {hostname}: {e}")
                     gpu_info[hostname] = {
-                        'gpu_used': 0, 
-                        'gpu_capacity': 8, 
-                        'gpu_usage_ratio': '0/8'
+                        'gpu_used': 0,
+                        'gpu_capacity': 8,
+                        'gpu_usage_ratio': '0/8',
+                        'vm_gpu_breakdown': []
                     }
         
         elapsed = time.time() - start_time
@@ -1501,10 +1502,11 @@ def get_host_gpu_info_direct(hostname):
         
         # Calculate total GPU usage from all VMs
         total_gpu_used = 0
+        vm_gpu_breakdown = []  # List of GPU counts per VM
         for server in servers:
             # Get flavor info and extract GPU count - try multiple ways to get flavor name
             flavor_name = None
-            
+
             # Try different ways to get the flavor name
             if hasattr(server, 'flavor') and isinstance(server.flavor, dict):
                 flavor_name = server.flavor.get('original_name') or server.flavor.get('name')
@@ -1512,8 +1514,8 @@ def get_host_gpu_info_direct(hostname):
                 flavor_name = server.flavor.name
             elif hasattr(server, 'flavor_name'):
                 flavor_name = server.flavor_name
-            
-            
+
+
             if flavor_name and flavor_name != 'N/A':
                 # Extract GPU count from flavor name like 'n3-H100x1', 'n3-H100x2', 'n3-RTX-A6000x8'
                 import re
@@ -1521,6 +1523,7 @@ def get_host_gpu_info_direct(hostname):
                 if match:
                     gpu_count = int(match.group(1))
                     total_gpu_used += gpu_count
+                    vm_gpu_breakdown.append(gpu_count)
                 else:
                     pass
         
@@ -1535,15 +1538,17 @@ def get_host_gpu_info_direct(hostname):
         return {
             'gpu_used': total_gpu_used,
             'gpu_capacity': host_gpu_capacity,
-            'gpu_usage_ratio': f"{total_gpu_used}/{host_gpu_capacity}"
+            'gpu_usage_ratio': f"{total_gpu_used}/{host_gpu_capacity}",
+            'vm_gpu_breakdown': vm_gpu_breakdown
         }
-        
+
     except Exception as e:
         print(f"❌ GPU Info Agent error for {hostname}: {e}")
         return {
             'gpu_used': 0,
             'gpu_capacity': 8,  # Default to 8 GPUs
-            'gpu_usage_ratio': "0/8"
+            'gpu_usage_ratio': "0/8",
+            'vm_gpu_breakdown': []
         }
 
 def clear_parallel_cache(branch=None):
