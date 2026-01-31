@@ -612,16 +612,18 @@ class RackView {
                  data-vm-count="${vmCount}">
                 <div class="device-info">
                     <span class="device-name">${displayName}</span>
+                    ${device.nvlinks ? '<i class="fas fa-link nvlink-icon"></i>' : ''}
                     <span class="device-owner-badge">${ownerLabel}</span>
                 </div>
-                <div class="device-stats">
-                    <span class="device-gpu-usage">${gpuUsageRatio}</span>
-                    ${vmCount > 0 ? `<span class="rack-vm-button" data-hostname="${device.hostname}" data-vm-count="${vmCount}" title="View running VMs (${vmCount})">💻</span>` : ''}
+                <div class="device-buffs">
                     ${platformIcon}
-                    ${device.nvlinks ? '<i class="fas fa-link nvlink-icon"></i>' : ''}
                     ${statusIcon}
                 </div>
-                ${segmentedBar}
+                <div class="device-stats">
+                    ${vmCount > 0 ? `<span class="rack-vm-button" data-hostname="${device.hostname}" data-vm-count="${vmCount}" title="View running VMs (${vmCount})">💻</span>` : ''}
+                    ${segmentedBar}
+                    <span class="device-gpu-usage">${gpuUsageRatio}</span>
+                </div>
             </div>
         `;
     }

@@ -3469,10 +3469,11 @@ body {
     cursor: pointer;
     opacity: 0.8;
     transition: all 0.2s ease;
-    margin-left: 4px;
+    margin-right: 4px;
     padding: 0 2px;
     border-radius: 2px;
     z-index: 15;
+    flex-shrink: 0;
 }
 
 .rack-vm-button:hover {
@@ -3481,15 +3482,38 @@ body {
     background: rgba(255, 255, 255, 0.2);
 }
 
+/* Device Buffs Row (icons under hostname like WoW buffs) */
+.device-buffs {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    min-height: 14px;
+    margin-top: 1px;
+}
+
+/* Device Stats Row (VM button, bar, GPU ratio) */
+.device-stats {
+    display: flex;
+    align-items: center;
+    margin-top: auto;
+    width: 100%;
+}
+
+.device-stats .device-gpu-usage {
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
 /* GPU Segment Bar for VM Distribution */
 .gpu-segment-bar {
     display: flex;
     height: 4px;
-    width: 100%;
+    flex: 1;
+    min-width: 20px;
     background: rgba(255, 255, 255, 0.2);
     border-radius: 2px;
     overflow: hidden;
-    margin-top: 2px;
+    margin: 0 4px;
 }
 
 .gpu-segment {
@@ -3502,13 +3526,13 @@ body {
     border-right: none;
 }
 
-/* Platform Icons for Rack Devices */
+/* Platform Icons for Rack Devices (buffs style) */
 .platform-icon {
-    width: 12px;
-    height: 12px;
-    margin-left: 4px;
+    width: 14px;
+    height: 14px;
     vertical-align: middle;
     opacity: 0.9;
+    border-radius: 2px;
 }
 
 .device-name {
@@ -3603,18 +3627,25 @@ body {
 /* Device card layout - show info without hover */
 .device-info {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    line-height: 1;
-}
-
-.device-stats {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 10px;
     line-height: 1;
     gap: 4px;
+}
+
+.device-info .device-name {
+    flex: 1;
+    min-width: 0;
+}
+
+.device-info .device-owner-badge {
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+.device-info .nvlink-icon {
+    flex-shrink: 0;
+    font-size: 8px;
+    color: #17a2b8;
 }
 
 .device-owner-badge {
