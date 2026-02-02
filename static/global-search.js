@@ -221,7 +221,10 @@ class GlobalSearch {
 
         // Update rack view if it exists
         if (window.rackView) {
+            console.log(`🔍 GlobalSearch: Calling rackView.handleSearch("${this.searchTerm}")`);
             window.rackView.handleSearch(this.searchTerm);
+        } else {
+            console.warn('⚠️ GlobalSearch: window.rackView not found');
         }
 
         // Clear individual column search inputs when global search is active

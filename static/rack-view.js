@@ -240,6 +240,13 @@ class RackView {
 
         this.renderSummary();
         this.renderRacks();
+
+        // Re-apply filters after rendering (including any active search)
+        // Also sync search term from global search if active
+        if (window.GlobalSearch && window.GlobalSearch.searchTerm) {
+            this.searchTerm = window.GlobalSearch.searchTerm;
+        }
+        this.applyFilters();
     }
 
     /**
@@ -803,6 +810,8 @@ class RackView {
         const devices = document.querySelectorAll('.rack-device');
         const searchTerm = this.searchTerm;
 
+        console.log(`🔍 RackView.applyFilters: found ${devices.length} devices, searchTerm="${searchTerm}"`);
+
         devices.forEach(device => {
             const owner = device.dataset.owner;
             let visible = true;
@@ -841,6 +850,7 @@ class RackView {
      */
     handleSearch(searchTerm) {
         this.searchTerm = (searchTerm || '').toLowerCase().trim();
+        console.log(`🔍 RackView.handleSearch: "${this.searchTerm}"`);
         this.applyFilters();
     }
 
@@ -913,6 +923,7 @@ class RackView {
 
 // Global instance
 const rackView = new RackView();
+window.rackView = rackView;  // Expose to window for global search integration
 
 // Auto-load rack data when page loads (for preview options in banner)
 document.addEventListener('DOMContentLoaded', () => {
