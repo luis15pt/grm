@@ -44,7 +44,8 @@ def discover_gpu_aggregates(force_refresh=False):
         
         for agg in aggregates:
             # Pattern 1: Regular GPU aggregates: GPU-TYPE-n3[-suffix]
-            match = re.match(r'^([A-Z0-9-]+)-n3(-NVLink)?(-spot|-runpod)?$', agg.name)
+            # Supports: -NVLink, -spot, -runpod, -Drain suffixes
+            match = re.match(r'^([A-Z0-9-]+)-n3(-NVLink)?(-spot|-runpod|-Drain)?$', agg.name, re.IGNORECASE)
             if match:
                 gpu_type = match.group(1)
                 nvlink_suffix = match.group(2)  # -NVLink or None
