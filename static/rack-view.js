@@ -16,6 +16,7 @@ class RackView {
             showNexgen: true,
             showInvestors: true
         };
+        this.searchTerm = '';  // Global search term
         this.isLoading = false;
         this.initialized = false;
     }
@@ -800,11 +801,13 @@ class RackView {
      */
     applyFilters() {
         const devices = document.querySelectorAll('.rack-device');
+        const searchTerm = this.searchTerm;
 
         devices.forEach(device => {
             const owner = device.dataset.owner;
             let visible = true;
 
+            // Owner filters
             if (owner === 'Nexgen Cloud' && !this.filters.showNexgen) {
                 visible = false;
             }
@@ -812,8 +815,33 @@ class RackView {
                 visible = false;
             }
 
+            // Search filter
+            if (visible && searchTerm) {
+                const hostname = (device.dataset.hostname || '').toLowerCase();
+                const deviceOwner = (device.dataset.owner || '').toLowerCase();
+                const tenant = (device.dataset.tenant || '').toLowerCase();
+                const aggregate = (device.dataset.aggregate || '').toLowerCase();
+
+                const matchesSearch = hostname.includes(searchTerm) ||
+                                     deviceOwner.includes(searchTerm) ||
+                                     tenant.includes(searchTerm) ||
+                                     aggregate.includes(searchTerm);
+
+                if (!matchesSearch) {
+                    visible = false;
+                }
+            }
+
             device.classList.toggle('device-hidden', !visible);
         });
+    }
+
+    /**
+     * Handle global search - filter devices by search term
+     */
+    handleSearch(searchTerm) {
+        this.searchTerm = (searchTerm || '').toLowerCase().trim();
+        this.applyFilters();
     }
 
     /**

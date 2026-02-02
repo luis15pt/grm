@@ -106,6 +106,11 @@ class GlobalSearch {
      * Clear search and restore original data
      */
     clearSearch() {
+        // Clear rack view search regardless of aggregate search state
+        if (window.rackView) {
+            window.rackView.handleSearch('');
+        }
+
         if (!this.isSearchActive || !this.originalData) {
             return; // No search active or no original data to restore
         }
@@ -212,6 +217,11 @@ class GlobalSearch {
         // Also update variant columns if they exist
         if (window.Frontend && window.Frontend.renderOnDemandVariantColumns && data.ondemand) {
             window.Frontend.renderOnDemandVariantColumns(data.ondemand);
+        }
+
+        // Update rack view if it exists
+        if (window.rackView) {
+            window.rackView.handleSearch(this.searchTerm);
         }
 
         // Clear individual column search inputs when global search is active
