@@ -3607,6 +3607,55 @@ body {
     color: white;
 }
 
+/* Investor Spot Devices - Blue (in spot aggregate) */
+.device-investor-spot {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    border-color: #5dade2;
+    opacity: 1;
+}
+
+.device-investor-spot:hover {
+    background: linear-gradient(135deg, #5dade2, #3498db);
+}
+
+.device-investor-spot .device-name,
+.device-investor-spot .device-owner-badge,
+.device-investor-spot .device-gpu-usage {
+    color: white;
+}
+
+/* NexGen Spot Devices - Green (in spot aggregate) */
+.device-nexgen-spot {
+    background: linear-gradient(135deg, #00b894, #00a085);
+    border-color: #00d9a5;
+}
+
+.device-nexgen-spot:hover {
+    background: linear-gradient(135deg, #00d9a5, #00b894);
+}
+
+.device-nexgen-spot .device-name,
+.device-nexgen-spot .device-owner-badge,
+.device-nexgen-spot .device-gpu-usage {
+    color: white;
+}
+
+/* Contract Devices - Pink */
+.device-contract {
+    background: linear-gradient(135deg, #e84393, #d63384);
+    border-color: #f06292;
+}
+
+.device-contract:hover {
+    background: linear-gradient(135deg, #f06292, #e84393);
+}
+
+.device-contract .device-name,
+.device-contract .device-owner-badge,
+.device-contract .device-gpu-usage {
+    color: white;
+}
+
 /* In-Use NexGen Devices with gradient (color set inline via JS) */
 .device-in-use-gradient {
     border-color: #e74c3c;

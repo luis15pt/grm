@@ -552,7 +552,7 @@ class RackView {
             platformIcon = '<img src="https://26282475.fs1.hubspotusercontent-eu1.net/hubfs/26282475/hyperstack_2023/nextg_fav.ico" class="platform-icon" title="Hyperstack">';
         }
 
-        // Determine device class based on owner, status, and GPU usage
+        // Determine device class based on owner, status, aggregate, and GPU usage
         let deviceClass = 'rack-device';
         let inlineStyle = `bottom: ${bottomPx}px; height: ${heightPx}px;`;
 
@@ -560,15 +560,30 @@ class RackView {
         const ownerLabel = device.owner_group === 'Nexgen Cloud' ? 'NGC' : 'INV';
         const isNexgen = device.owner_group === 'Nexgen Cloud';
 
-        if (!isNexgen) {
-            // Investor devices: blue if empty (0/8), grey if in use
+        // Check aggregate type for special coloring
+        const aggregateLower = (device.aggregate || '').toLowerCase();
+        const isSpotAggregate = aggregateLower.includes('a100-n3-spot') || aggregateLower.includes('a6000-n3-spot');
+        const isContractAggregate = aggregateLower.includes('contract');
+
+        if (isContractAggregate) {
+            // Contract aggregate: Pink for both owners
+            deviceClass += ' device-contract';
+        } else if (isSpotAggregate) {
+            // Spot aggregate: Blue for Investor, Green for NexGen
+            if (!isNexgen) {
+                deviceClass += ' device-investor-spot';
+            } else {
+                deviceClass += ' device-nexgen-spot';
+            }
+        } else if (!isNexgen) {
+            // Investor devices (non-spot): blue if empty (0/8), grey if in use
             if (gpuUsed === 0) {
                 deviceClass += ' device-investor-empty';
             } else {
                 deviceClass += ' device-investor';
             }
         } else {
-            // NexGen devices: gradient from yellow (low usage) to red (full usage)
+            // NexGen devices (non-spot): gradient from yellow (low usage) to red (full usage)
             if (device.status === 'decommissioning') {
                 deviceClass += ' device-nexgen decommissioning';
             } else if (isInUse) {
