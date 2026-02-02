@@ -60,7 +60,8 @@ AGGREGATE_PAIRS = {
         'spot': 'A100-n3-spot',
         'ondemand_variants': [
             {'aggregate': 'A100-n3', 'variant': 'A100-n3'},
-            {'aggregate': 'A100-n3-NVLink', 'variant': 'A100-n3-NVLink'}
+            {'aggregate': 'A100-n3-NVLink', 'variant': 'A100-n3-NVLink'},
+            {'aggregate': 'A100-n3-Drain', 'variant': 'A100-n3-Drain'}
         ]
     },
     'H100': {
