@@ -1448,12 +1448,16 @@ function renderOnDemandVariantColumns(ondemandData) {
         })) : []
     });
 
-    const hasNVLinkVariants = ondemandData.variants && ondemandData.variants.length > 1 &&
-        ondemandData.variants.some(v => v.variant.toLowerCase().includes('nvlink'));
+    // Check for variants that should be split into separate columns (NVLink or Drain)
+    const hasSplitVariants = ondemandData.variants && ondemandData.variants.length > 1 &&
+        ondemandData.variants.some(v =>
+            v.variant.toLowerCase().includes('nvlink') ||
+            v.variant.toLowerCase().includes('drain')
+        );
 
-    console.log('🔍 hasNVLinkVariants result:', hasNVLinkVariants);
+    console.log('🔍 hasSplitVariants result:', hasSplitVariants);
 
-    if (hasNVLinkVariants) {
+    if (hasSplitVariants) {
         // Multiple variants - create separate columns
         // Hide fallback column
         const fallbackColumn = document.getElementById('ondemandColumnFallback');
