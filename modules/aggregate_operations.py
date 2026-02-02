@@ -64,13 +64,10 @@ def discover_gpu_aggregates(force_refresh=False):
                 elif pool_suffix == '-runpod':
                     gpu_aggregates[gpu_type]['runpod'] = agg.name
                 else:
-                    # No pool suffix = on-demand variant
-                    variant_name = agg.name
-                    if nvlink_suffix:
-                        variant_display = f"{gpu_type}-n3-NVLink"
-                    else:
-                        variant_display = f"{gpu_type}-n3"
-                    
+                    # On-demand variant (including -Drain and other custom suffixes)
+                    # Use the full aggregate name as the variant to preserve suffixes
+                    variant_display = agg.name
+
                     gpu_aggregates[gpu_type]['ondemand_variants'].append({
                         'aggregate': agg.name,
                         'variant': variant_display
