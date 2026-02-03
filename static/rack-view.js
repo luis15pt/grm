@@ -560,6 +560,10 @@ class RackView {
             platformIcon = '<img src="https://26282475.fs1.hubspotusercontent-eu1.net/hubfs/26282475/hyperstack_2023/nextg_fav.ico" class="platform-icon" title="Hyperstack">';
         }
 
+        // Contract icon - shown for all contract aggregate devices
+        const isContractDevice = aggregate.toLowerCase().includes('contract');
+        const contractIcon = isContractDevice ? '<i class="fas fa-file-contract platform-icon" title="Contract"></i>' : '';
+
         // Determine device class based on owner, status, aggregate, and GPU usage
         let deviceClass = 'rack-device';
         let inlineStyle = `bottom: ${bottomPx}px; height: ${heightPx}px;`;
@@ -574,8 +578,12 @@ class RackView {
         const isContractAggregate = aggregateLower.includes('contract');
 
         if (isContractAggregate) {
-            // Contract aggregate: Pink for both owners
-            deviceClass += ' device-contract';
+            // Contract aggregate: Pink for NexGen, Grey for Investor
+            if (isNexgen) {
+                deviceClass += ' device-contract';
+            } else {
+                deviceClass += ' device-investor-contract';
+            }
         } else if (isSpotAggregate) {
             // Spot aggregate: Blue for Investor, Green for NexGen
             if (!isNexgen) {
@@ -640,6 +648,7 @@ class RackView {
                 </div>
                 <div class="device-buffs">
                     ${platformIcon}
+                    ${contractIcon}
                     ${statusIcon}
                 </div>
                 <div class="device-stats">

@@ -3656,6 +3656,28 @@ body {
     color: white;
 }
 
+/* Investor Contract Devices - Grey */
+.device-investor-contract {
+    background: linear-gradient(135deg, #636e72, #4a5459);
+    border-color: #6c757d;
+}
+
+.device-investor-contract:hover {
+    background: linear-gradient(135deg, #6c757d, #636e72);
+}
+
+.device-investor-contract .device-name,
+.device-investor-contract .device-owner-badge,
+.device-investor-contract .device-gpu-usage {
+    color: white;
+}
+
+/* Contract icon styling */
+.device-buffs .fa-file-contract {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.9);
+}
+
 /* In-Use NexGen Devices with gradient (color set inline via JS) */
 .device-in-use-gradient {
     border-color: #e74c3c;
