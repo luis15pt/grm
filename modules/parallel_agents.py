@@ -1397,7 +1397,8 @@ def classify_aggregates_by_gpu_type(aggregates_dict):
     
     for agg_name, agg_obj in aggregates_dict.items():
         # Pattern 1: Regular GPU aggregates: GPU-TYPE-n3[-suffix]
-        match = re.match(r'^([A-Z0-9-]+)-n3(-NVLink)?(-spot|-runpod)?$', agg_name)
+        # Supports: -NVLink, -spot, -runpod, -Drain, -Lifeboat suffixes
+        match = re.match(r'^([A-Z0-9-]+)-n3(-NVLink)?(-spot|-runpod|-Drain|-Lifeboat)?$', agg_name)
         if match:
             gpu_type = match.group(1)
             nvlink_suffix = match.group(2)
@@ -1416,11 +1417,11 @@ def classify_aggregates_by_gpu_type(aggregates_dict):
             elif pool_suffix == '-runpod':
                 gpu_aggregates[gpu_type]['runpod'] = agg_name
             else:
-                # On-demand variant
-                variant_display = f"{gpu_type}-n3{nvlink_suffix or ''}"
+                # On-demand variant (including -Drain, -Lifeboat and other custom suffixes)
+                # Use the full aggregate name as the variant to preserve suffixes
                 gpu_aggregates[gpu_type]['ondemand_variants'].append({
                     'aggregate': agg_name,
-                    'variant': variant_display
+                    'variant': agg_name
                 })
         
         # Pattern 2: Contract aggregates

@@ -73,9 +73,11 @@ AGGREGATE_PAIRS = {
         ]
     },
     'RTX-A6000': {
-        'spot': 'RTX-A6000-n3-spot', 
+        'spot': 'RTX-A6000-n3-spot',
         'ondemand_variants': [
-            {'aggregate': 'RTX-A6000-n3', 'variant': 'RTX-A6000-n3'}
+            {'aggregate': 'RTX-A6000-n3', 'variant': 'RTX-A6000-n3'},
+            {'aggregate': 'RTX-A6000-n3-Drain', 'variant': 'RTX-A6000-n3-Drain'},
+            {'aggregate': 'RTX-A6000-n3-Lifeboat', 'variant': 'RTX-A6000-n3-Lifeboat'}
         ]
     },
     'A100': {
