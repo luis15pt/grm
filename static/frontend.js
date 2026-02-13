@@ -1448,11 +1448,12 @@ function renderOnDemandVariantColumns(ondemandData) {
         })) : []
     });
 
-    // Check for variants that should be split into separate columns (NVLink or Drain)
+    // Check for variants that should be split into separate columns (NVLink, Drain, or Lifeboat)
     const hasSplitVariants = ondemandData.variants && ondemandData.variants.length > 1 &&
         ondemandData.variants.some(v =>
             v.variant.toLowerCase().includes('nvlink') ||
-            v.variant.toLowerCase().includes('drain')
+            v.variant.toLowerCase().includes('drain') ||
+            v.variant.toLowerCase().includes('lifeboat')
         );
 
     console.log('🔍 hasSplitVariants result:', hasSplitVariants);
