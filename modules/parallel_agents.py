@@ -820,11 +820,29 @@ def organize_by_netbox_devices(results):
     
     # Build final organized structure
     organized = {}
-    
+
     # Add GPU type columns with individual pool summaries
     for gpu_type, column_data in gpu_columns.items():
         organized[gpu_type] = finalize_gpu_column_with_pools(column_data)
-    
+
+    # Post-process: ensure OpenStack aggregates appear as ondemand variants even if
+    # they have no active NetBox hosts (e.g. empty Lifeboat/Drain aggregates)
+    import re
+    for agg_name in aggregate_to_hosts.keys():
+        # Match GPU-TYPE-n3[-suffix] pattern for ondemand-like aggregates
+        agg_match = re.match(r'^([A-Z0-9-]+)-n3(-NVLink)?(-Drain|-Lifeboat)?$', agg_name, re.IGNORECASE)
+        if agg_match and agg_match.group(3):  # Only care about special suffixes
+            gpu_type = agg_match.group(1)
+            if gpu_type in organized:
+                config = organized[gpu_type].get('config', {})
+                existing_variants = {v['aggregate'] for v in config.get('ondemand_variants', [])}
+                if agg_name not in existing_variants:
+                    config.setdefault('ondemand_variants', []).append({
+                        'aggregate': agg_name,
+                        'variant': agg_name
+                    })
+                    print(f"📌 Added empty aggregate '{agg_name}' to {gpu_type} ondemand variants")
+
     # Debug: Show out-of-stock devices per GPU type
     for gpu_type, column_data in gpu_columns.items():
         outofstock_count = len(column_data.get('outofstock', {}).get('hosts', []))
