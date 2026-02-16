@@ -99,9 +99,9 @@ class RackView {
                 this.filters.gpuType = (value && value !== 'All' && value !== '') ? value : '';
                 // Always reload global summary for banner preview options
                 this.loadGlobalSummary();
-                // Only reload rack view if it's visible
-                const container = document.getElementById('rackViewContainer');
-                if (container && container.style.display !== 'none') {
+                // Only reload rack view if the rack tab is active
+                const rackTab = document.getElementById('rack-tab');
+                if (rackTab && rackTab.classList.contains('active')) {
                     this.loadData();
                 }
             });
@@ -894,12 +894,9 @@ class RackView {
     }
 
     /**
-     * Show the rack view
+     * Show the rack view (called when Rack View tab is activated)
      */
     show() {
-        const container = document.getElementById('rackViewContainer');
-        const aggregateView = document.getElementById('hostsRow');
-
         // Sync GPU type filter from main selector
         const gpuSelect = document.getElementById('gpuTypeSelect');
         if (gpuSelect) {
@@ -907,26 +904,7 @@ class RackView {
             this.filters.gpuType = (value && value !== 'All' && value !== '') ? value : '';
         }
 
-        if (container) {
-            container.style.display = 'block';
-            this.init().then(() => this.loadData());
-        }
-        if (aggregateView) aggregateView.style.display = 'none';
-    }
-
-    /**
-     * Hide the rack view
-     */
-    hide() {
-        const container = document.getElementById('rackViewContainer');
-        const aggregateView = document.getElementById('hostsRow');
-
-        if (container) container.style.display = 'none';
-        // Clear the inline display style set by show() - this restores visibility
-        if (aggregateView) {
-            aggregateView.style.display = '';
-            aggregateView.classList.remove('d-none');
-        }
+        this.init().then(() => this.loadData());
     }
 }
 
@@ -934,31 +912,21 @@ class RackView {
 const rackView = new RackView();
 window.rackView = rackView;  // Expose to window for global search integration
 
-// Auto-load rack data when page loads (for preview options in banner)
+// Auto-load global summary + listen for tab activation
 document.addEventListener('DOMContentLoaded', () => {
-    // Load global data (no site filter) after a short delay
+    // Pre-load global summary data after a short delay
     setTimeout(() => {
         rackView.init().then(() => {
             rackView.loadGlobalSummary();
-            console.log('Rack view global summary pre-loaded for preview options');
+            console.log('Rack view global summary pre-loaded');
         });
     }, 1000);
-});
 
-/**
- * Toggle between Aggregate View and Rack View
- */
-function toggleRackView(showRack) {
-    const aggregateBtn = document.getElementById('aggregateViewBtn');
-    const rackBtn = document.getElementById('rackViewBtn');
-
-    if (showRack) {
-        rackView.show();
-        if (aggregateBtn) aggregateBtn.classList.remove('active');
-        if (rackBtn) rackBtn.classList.add('active');
-    } else {
-        rackView.hide();
-        if (aggregateBtn) aggregateBtn.classList.add('active');
-        if (rackBtn) rackBtn.classList.remove('active');
+    // Load rack data when the Rack View tab is shown
+    const rackTab = document.getElementById('rack-tab');
+    if (rackTab) {
+        rackTab.addEventListener('shown.bs.tab', () => {
+            rackView.show();
+        });
     }
-}
+});

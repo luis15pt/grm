@@ -64,23 +64,6 @@
                             </div>
                         </div>
 
-                        <!-- View Toggle -->
-                        <div class="navbar-nav me-4">
-                            <div class="nav-item">
-                                <label class="text-light small mb-1 d-block">View</label>
-                                <div class="view-toggle btn-group" role="group">
-                                    <button type="button" class="btn btn-outline-light btn-sm active" id="aggregateViewBtn"
-                                            onclick="toggleRackView(false)" title="Pool-based column view">
-                                        <i class="fas fa-columns"></i> Aggregate
-                                    </button>
-                                    <button type="button" class="btn btn-outline-light btn-sm" id="rackViewBtn"
-                                            onclick="toggleRackView(true)" title="Physical rack elevation view">
-                                        <i class="fas fa-th"></i> Rack
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
                         <!-- Host Search -->
                         <div class="navbar-nav flex-grow-1 me-4">
                             <div class="nav-item w-100">
@@ -247,6 +230,11 @@
                         <li class="nav-item" role="presentation">
                             <button class="nav-link active" id="hosts-tab" data-bs-toggle="tab" data-bs-target="#hosts" type="button" role="tab">
                                 <i class="fas fa-server"></i> Host Management
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="rack-tab" data-bs-toggle="tab" data-bs-target="#rack" type="button" role="tab">
+                                <i class="fas fa-th"></i> Rack View
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
@@ -574,8 +562,11 @@
                                 </div>
                             </div>
 
-                            <!-- Rack View Container (Hidden by default) -->
-                            <div id="rackViewContainer" style="display: none;">
+                        </div>
+
+                        <!-- Rack View Tab -->
+                        <div class="tab-pane fade" id="rack" role="tabpanel">
+                            <div id="rackViewContainer">
                                 <!-- Loading State -->
                                 <div id="rackViewLoader" style="display: none;">
                                     <div class="spinner-border text-primary" role="status">
@@ -668,8 +659,8 @@
                                     <div id="rackGrid">
                                         <div class="text-center text-muted py-5">
                                             <i class="fas fa-server fa-3x mb-3"></i>
-                                            <h5>Select filters above to load rack view</h5>
-                                            <p>Click "Rack" view toggle to visualize physical rack positions.</p>
+                                            <h5>Loading rack data...</h5>
+                                            <p>Rack elevation view will appear here once data is loaded.</p>
                                         </div>
                                     </div>
                                 </div>
