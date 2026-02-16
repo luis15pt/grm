@@ -2697,11 +2697,22 @@ async function onBranchChange(event) {
         }
         console.log('🧹 Cleared all frontend caches for branch switch');
 
-        // Reload current GPU type data by triggering the GPU type select change event
+        // Preserve current GPU type selection, then reload all data via progress modal
         const gpuTypeSelect = document.getElementById('gpuTypeSelect');
-        if (gpuTypeSelect && gpuTypeSelect.value) {
-            gpuTypeSelect.dispatchEvent(new Event('change'));
+        const currentSelection = gpuTypeSelect?.value;
+
+        // Show the progress modal and reload data (repopulates loadedParallelData)
+        if (typeof showProgressModal === 'function') showProgressModal();
+        if (typeof simulateInitialLoadingProgress === 'function') simulateInitialLoadingProgress();
+
+        // Store selection so loadGpuTypes auto-selects it after repopulating
+        if (currentSelection) {
+            window.urlGpuType = currentSelection;
         }
+
+        // loadGpuTypes fetches /api/gpu-types, repopulates loadedParallelData,
+        // auto-selects urlGpuType, and hides the progress modal when done
+        window.OpenStack.loadGpuTypes();
 
         showNotification(`Switched to branch: ${newBranch || 'Main (Production)'}`, 'success');
     } catch (error) {

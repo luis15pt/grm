@@ -175,11 +175,18 @@ window.VariantSettings = (function() {
             if (window.gpuDataCache) window.gpuDataCache.clear();
             window.loadedParallelData = null;
 
-            // Reload current view
+            // Reload via progress modal (same as branch switch)
             const gpuSelect = document.getElementById('gpuTypeSelect');
-            if (gpuSelect && gpuSelect.value) {
-                gpuSelect.dispatchEvent(new Event('change'));
+            const currentSelection = gpuSelect?.value;
+
+            if (typeof showProgressModal === 'function') showProgressModal();
+            if (typeof simulateInitialLoadingProgress === 'function') simulateInitialLoadingProgress();
+
+            if (currentSelection) {
+                window.urlGpuType = currentSelection;
             }
+
+            window.OpenStack.loadGpuTypes();
 
         } catch (error) {
             alert('Failed to save settings: ' + error.message);
