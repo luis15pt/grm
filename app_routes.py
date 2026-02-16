@@ -2078,6 +2078,63 @@ power_state:
             print(f"❌ Error clearing NetBox caches: {e}")
             return jsonify({'success': False, 'error': str(e)}), 500
 
+    @app.route('/api/refresh-netbox-data', methods=['POST'])
+    def refresh_netbox_data():
+        """Refresh only NetBox data for branch switching.
+
+        Re-runs only the NetBox agent and re-organizes with cached OpenStack
+        agent results. Much faster than a full refresh since OpenStack data
+        (aggregates, VMs, GPUs, compute services) is branch-independent.
+
+        Returns the same shape as /api/gpu-types so frontend can populate
+        loadedParallelData directly.
+        """
+        try:
+            from app_business_logic import clear_netbox_cache
+            from modules.netbox_outofstock_operations import clear_outofstock_cache
+            from modules.parallel_agents import clear_parallel_cache, refresh_netbox_only
+
+            data = request.get_json(silent=True) or {}
+            schema_id = data.get('schema_id')
+
+            start_time = time.time()
+
+            # Clear only NetBox-specific caches
+            netbox_cache_count = clear_netbox_cache()
+            outofstock_cache_count = clear_outofstock_cache()
+
+            # Clear only the branch-specific parallel cache entry (preserves OpenStack agent cache)
+            parallel_cleared = clear_parallel_cache(branch=schema_id)
+
+            print(f"🌿 NetBox caches cleared for branch refresh: tenant={netbox_cache_count}, outofstock={outofstock_cache_count}, parallel={parallel_cleared}")
+
+            # Run NetBox-only refresh (reuses cached OpenStack data)
+            organized_data = refresh_netbox_only(branch=schema_id)
+
+            # Build response matching /api/gpu-types shape
+            gpu_types = [key for key in organized_data.keys() if not key.startswith('_')]
+            aggregates_info = {}
+            for gpu_type in gpu_types:
+                aggregates_info[gpu_type] = organized_data[gpu_type].get('config', {})
+
+            refresh_time = time.time() - start_time
+            print(f"✅ NetBox-only refresh completed in {refresh_time:.2f}s")
+
+            return jsonify({
+                'success': True,
+                'gpu_types': gpu_types,
+                'aggregates': aggregates_info,
+                'parallel_data': organized_data,
+                'performance': {
+                    'refresh_time': round(refresh_time, 2),
+                    'netbox_only': True
+                }
+            })
+
+        except Exception as e:
+            print(f"❌ Error during NetBox-only refresh: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+
     # =============================================================================
     # NETBOX BRANCH MANAGEMENT ENDPOINTS
     # =============================================================================

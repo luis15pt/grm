@@ -15,6 +15,11 @@ _cache_lock = threading.Lock()
 _active_requests = {}  # Track active requests to prevent duplicates
 PARALLEL_CACHE_TTL = 600  # 10 minutes - production cache TTL
 
+# Separate cache for raw OpenStack agent results (branch-independent)
+# Allows NetBox-only refresh on branch switch without re-running OpenStack agents
+_openstack_agent_cache = {}
+_openstack_agent_timestamp = 0
+
 def get_all_data_parallel(branch=None):
     """
     Master function that runs all 4 agents in parallel and returns organized results
@@ -85,7 +90,18 @@ def get_all_data_parallel(branch=None):
     
         total_time = time.time() - start_time
         print(f"🏁 All parallel agents completed in {total_time:.2f}s")
-        
+
+        # Cache raw OpenStack agent results (branch-independent) for NetBox-only refresh
+        global _openstack_agent_cache, _openstack_agent_timestamp
+        _openstack_agent_cache = {
+            'aggregates': results.get('aggregates', {}),
+            'vm_counts': results.get('vm_counts', {}),
+            'gpu_info': results.get('gpu_info', {}),
+            'compute_services': results.get('compute_services', {})
+        }
+        _openstack_agent_timestamp = time.time()
+        print(f"💾 Cached OpenStack agent results for NetBox-only refresh")
+
         # Organize the results using NetBox-first approach
         try:
             organized_data = organize_by_netbox_devices(results)
@@ -1583,14 +1599,16 @@ def clear_parallel_cache(branch=None):
     Args:
         branch: Optional branch to clear. If None, clears all branch caches.
     """
-    global _parallel_cache, _cache_timestamps
+    global _parallel_cache, _cache_timestamps, _openstack_agent_cache, _openstack_agent_timestamp
 
     if branch is None:
-        # Clear all caches
+        # Clear all caches (including OpenStack agent cache)
         cleared_count = len(_parallel_cache)
         _parallel_cache.clear()
         _cache_timestamps.clear()
-        print(f"🧹 Cleared {cleared_count} items from parallel cache")
+        _openstack_agent_cache = {}
+        _openstack_agent_timestamp = 0
+        print(f"🧹 Cleared {cleared_count} items from parallel cache + OpenStack agent cache")
         return cleared_count
     else:
         # Clear specific branch cache
@@ -1614,6 +1632,70 @@ def force_cache_refresh(branch=None):
     print("🔄 FORCING IMMEDIATE CACHE REFRESH...")
     clear_parallel_cache(branch)
     return get_all_data_parallel(branch)
+
+
+def refresh_netbox_only(branch=None):
+    """Refresh only NetBox data and re-organize with cached OpenStack results.
+
+    Used for branch switching where only NetBox device metadata changes.
+    Falls back to full refresh if cached OpenStack data is stale or missing.
+
+    Args:
+        branch: Optional NetBox branch schema ID
+
+    Returns:
+        Organized data dict (same structure as get_all_data_parallel)
+    """
+    global _openstack_agent_cache, _openstack_agent_timestamp
+
+    # Check if we have fresh OpenStack agent results to reuse
+    cache_age = time.time() - _openstack_agent_timestamp if _openstack_agent_timestamp else float('inf')
+    if not _openstack_agent_cache or cache_age > PARALLEL_CACHE_TTL:
+        print(f"⚠️ OpenStack agent cache is stale ({cache_age:.0f}s old) or missing — falling back to full refresh")
+        return force_cache_refresh(branch)
+
+    print(f"🌿 NetBox-only refresh: reusing cached OpenStack data ({cache_age:.0f}s old), re-running NetBox agent only...")
+    start_time = time.time()
+
+    # Run only the NetBox agent with the new branch
+    try:
+        netbox_result = netbox_agent(branch)
+    except Exception as e:
+        print(f"❌ NetBox agent failed during branch refresh: {e}")
+        netbox_result = {}
+
+    netbox_time = time.time() - start_time
+    print(f"📡 NetBox agent completed in {netbox_time:.2f}s")
+
+    # Merge with cached OpenStack results
+    results = {
+        'netbox': netbox_result,
+        'aggregates': _openstack_agent_cache.get('aggregates', {}),
+        'vm_counts': _openstack_agent_cache.get('vm_counts', {}),
+        'gpu_info': _openstack_agent_cache.get('gpu_info', {}),
+        'compute_services': _openstack_agent_cache.get('compute_services', {})
+    }
+
+    # Re-organize with fresh NetBox data + cached OpenStack data
+    try:
+        organized_data = organize_by_netbox_devices(results)
+    except Exception as e:
+        print(f"❌ organize_by_netbox_devices failed during NetBox-only refresh: {e}")
+        import traceback
+        print(f"❌ Full traceback: {traceback.format_exc()}")
+        return force_cache_refresh(branch)
+
+    # Cache the organized result under the branch-specific key
+    cache_suffix = get_cache_key_suffix(branch)
+    cache_key = f"all_parallel_data{cache_suffix}"
+    _parallel_cache[cache_key] = organized_data
+    _cache_timestamps[cache_key] = time.time()
+
+    total_time = time.time() - start_time
+    gpu_types = [k for k in organized_data.keys() if not k.startswith('_')]
+    print(f"✅ NetBox-only refresh completed: {len(gpu_types)} GPU types in {total_time:.2f}s (vs ~15s for full refresh)")
+
+    return organized_data
 
 def get_parallel_cache_stats():
     """Get parallel cache statistics"""

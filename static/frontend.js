@@ -2671,56 +2671,106 @@ async function onBranchChange(event) {
     // Update current branch
     currentNetboxBranch = newBranch;
 
-    // Show loading indicator
-    showBranchSwitchingIndicator();
+    // Show branch-specific progress modal (OpenStack steps pre-completed)
+    if (typeof window.showBranchSwitchProgress === 'function') {
+        window.showBranchSwitchProgress(newBranch || 'Main');
+    }
+    if (typeof window.simulateBranchSwitchProgress === 'function') {
+        window.simulateBranchSwitchProgress();
+    }
 
     try {
-        // Set as global default on server and clear only NetBox caches
+        // Step 1: Set as global default on server
         await fetch('/api/netbox/branch/default', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ schema_id: newBranch })
         });
 
-        // Clear only NetBox-related caches (not OpenStack/VM data)
-        await fetch('/api/clear-netbox-cache', { method: 'POST' });
+        // Step 2: NetBox-only refresh — clears NetBox caches, re-runs only NetBox agent,
+        // reuses cached OpenStack data, returns full parallel_data
+        const response = await fetch('/api/refresh-netbox-data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ schema_id: newBranch })
+        });
 
-        // Clear all frontend caches to force fresh data fetch from parallel agents
+        if (!response.ok) {
+            throw new Error(`NetBox refresh failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'NetBox refresh failed');
+        }
+
+        console.log(`✅ NetBox-only refresh completed in ${data.performance?.refresh_time}s`);
+
+        // Step 3: Populate frontend caches from response
+        if (data.parallel_data) {
+            window.loadedParallelData = data.parallel_data;
+        }
+        window.loadedAggregatesData = data.aggregates;
+        if (window.gpuAggregatesCache) {
+            window.gpuAggregatesCache.data = data.aggregates;
+            window.gpuAggregatesCache.timestamp = Date.now();
+        }
+
+        // Clear processed data caches (will be re-derived from fresh loadedParallelData)
         if (window.gpuDataCache) {
             window.gpuDataCache.clear();
         }
-        window.loadedParallelData = null;
-        window.loadedAggregatesData = null;
-        if (window.gpuAggregatesCache) {
-            window.gpuAggregatesCache.data = null;
-            window.gpuAggregatesCache.timestamp = null;
-        }
-        console.log('🧹 Cleared all frontend caches for branch switch');
 
-        // Preserve current GPU type selection, then reload all data via progress modal
+        // Update counts in progress modal before hiding
+        if (window.updateProgressCountsFromData && data.parallel_data) {
+            window.updateProgressCountsFromData(data.parallel_data);
+        }
+
+        // Step 4: Re-render current GPU type
         const gpuTypeSelect = document.getElementById('gpuTypeSelect');
-        const currentSelection = gpuTypeSelect?.value;
-
-        // Show the progress modal and reload data (repopulates loadedParallelData)
-        if (typeof showProgressModal === 'function') showProgressModal();
-        if (typeof simulateInitialLoadingProgress === 'function') simulateInitialLoadingProgress();
-
-        // Store selection so loadGpuTypes auto-selects it after repopulating
-        if (currentSelection) {
-            window.urlGpuType = currentSelection;
+        if (gpuTypeSelect && gpuTypeSelect.value) {
+            window.currentGpuType = gpuTypeSelect.value;
+            window.OpenStack.loadAggregateData(gpuTypeSelect.value);
         }
 
-        // loadGpuTypes fetches /api/gpu-types, repopulates loadedParallelData,
-        // auto-selects urlGpuType, and hides the progress modal when done
-        window.OpenStack.loadGpuTypes();
+        // Show completion and hide modal
+        if (typeof updateProgress === 'function') {
+            updateProgress('complete', `Branch switch completed in ${data.performance?.refresh_time || '?'}s`, 100);
+        }
+        setTimeout(() => {
+            const modalEl = document.getElementById('refreshProgressModal');
+            if (modalEl) {
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                if (modal) modal.hide();
+            }
+            // Reset modal title for next non-branch use
+            if (typeof window.resetProgressModalTitle === 'function') {
+                window.resetProgressModalTitle();
+            }
+        }, 1500);
 
         showNotification(`Switched to branch: ${newBranch || 'Main (Production)'}`, 'success');
+
     } catch (error) {
         console.error('Failed to switch branch:', error);
-        showNotification('Failed to switch NetBox branch', 'error');
-    }
+        showNotification('Failed to switch NetBox branch: ' + error.message, 'error');
 
-    hideBranchSwitchingIndicator();
+        // Hide modal on error
+        if (typeof updateProgress === 'function') {
+            updateProgress('error', 'Branch switch failed', 0);
+        }
+        setTimeout(() => {
+            const modalEl = document.getElementById('refreshProgressModal');
+            if (modalEl) {
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                if (modal) modal.hide();
+            }
+            if (typeof window.resetProgressModalTitle === 'function') {
+                window.resetProgressModalTitle();
+            }
+        }, 2000);
+    }
 }
 
 /**

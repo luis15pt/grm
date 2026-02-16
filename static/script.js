@@ -1513,6 +1513,114 @@ function showProgressModal() {
     }
 }
 
+/**
+ * Show the progress modal configured for a branch switch.
+ * Only NetBox + organizing steps are active; OpenStack steps show as "(unchanged)".
+ */
+function showBranchSwitchProgress(branchName) {
+    const modalEl = document.getElementById('refreshProgressModal');
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+
+    // Update title to reflect branch switch
+    const title = modalEl.querySelector('.modal-title');
+    if (title) {
+        title.innerHTML = '<i class="fas fa-code-branch fa-spin text-primary"></i> Switching NetBox Branch';
+    }
+
+    // Reset progress
+    updateProgress('clearing', 'Switching branch...', 0);
+
+    // Mark OpenStack steps as pre-completed with "(unchanged)" hint
+    const unchangedSteps = {
+        'step-openstack': { hint: 'aggregates-count-hint', label: '(unchanged)' },
+        'step-vms':       { hint: 'vms-count-hint',        label: '(unchanged)' },
+        'step-gpus':      { hint: 'gpus-count-hint',       label: '(unchanged)' }
+    };
+
+    Object.entries(unchangedSteps).forEach(([stepId, info]) => {
+        const step = document.getElementById(stepId);
+        if (step) {
+            const icon = step.querySelector('i');
+            if (icon) icon.className = 'fas fa-check-circle text-success me-3';
+            const hint = document.getElementById(info.hint);
+            if (hint) hint.textContent = info.label;
+        }
+    });
+
+    // Reset NetBox and organizing hints
+    const netboxHint = document.getElementById('netbox-count-hint');
+    if (netboxHint) netboxHint.textContent = 'Loading...';
+    const orgStep = document.getElementById('step-organizing');
+    if (orgStep) {
+        const span = orgStep.querySelector('.flex-grow-1');
+        if (span) span.innerHTML = 'Re-organizing data...';
+    }
+
+    // Reset clearing step hint
+    const clearingStep = document.getElementById('step-clearing');
+    if (clearingStep) {
+        const span = clearingStep.querySelector('.flex-grow-1');
+        if (span) span.innerHTML = 'Clearing NetBox caches...';
+    }
+}
+
+/**
+ * Simulate progress for a branch switch (only NetBox steps).
+ */
+function simulateBranchSwitchProgress() {
+    const steps = [
+        { stage: 'clearing', message: 'Clearing NetBox caches...', progress: 10, delay: 200 },
+        { stage: 'netbox',   message: 'Fetching NetBox devices from new branch...', progress: 40, delay: 1000 },
+        { stage: 'organizing', message: 'Re-organizing data...', progress: 85, delay: 4000 }
+    ];
+
+    steps.forEach(step => {
+        setTimeout(() => {
+            updateProgress(step.stage, step.message, step.progress);
+        }, step.delay);
+    });
+}
+
+/**
+ * Reset the progress modal title back to the default (for next non-branch use).
+ */
+function resetProgressModalTitle() {
+    const modalEl = document.getElementById('refreshProgressModal');
+    if (!modalEl) return;
+
+    // Restore default title
+    const title = modalEl.querySelector('.modal-title');
+    if (title) {
+        title.innerHTML = '<i class="fas fa-sync-alt fa-spin text-primary"></i> Refreshing All Data';
+    }
+    // Restore clearing step label
+    const clearingStep = document.getElementById('step-clearing');
+    if (clearingStep) {
+        const span = clearingStep.querySelector('.flex-grow-1');
+        if (span) span.textContent = 'Clearing caches...';
+    }
+    // Restore organizing step label
+    const orgStep = document.getElementById('step-organizing');
+    if (orgStep) {
+        const span = orgStep.querySelector('.flex-grow-1');
+        if (span) span.textContent = 'Organizing data by GPU types...';
+    }
+    // Reset all step icons to default (muted circle) except clearing (first step)
+    ['step-netbox', 'step-openstack', 'step-vms', 'step-gpus', 'step-organizing'].forEach(id => {
+        const step = document.getElementById(id);
+        if (step) {
+            const icon = step.querySelector('i');
+            if (icon) icon.className = 'fas fa-circle text-muted me-3';
+        }
+    });
+}
+
+// Make branch switch functions globally available
+window.showBranchSwitchProgress = showBranchSwitchProgress;
+window.simulateBranchSwitchProgress = simulateBranchSwitchProgress;
+window.resetProgressModalTitle = resetProgressModalTitle;
+
 function updateProgress(stage, message, progress) {
     const progressStage = document.getElementById('progress-stage');
     const progressPercent = document.getElementById('progress-percent');
