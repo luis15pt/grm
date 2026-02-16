@@ -171,8 +171,9 @@ window.VariantSettings = (function() {
                 window.CacheManager.showNotification('Variant column settings saved. Refreshing...', 'success');
             }
 
-            // Clear frontend cache and reload current GPU type
+            // Clear all frontend caches and reload current GPU type
             if (window.gpuDataCache) window.gpuDataCache.clear();
+            window.loadedParallelData = null;
 
             // Reload current view
             const gpuSelect = document.getElementById('gpuTypeSelect');

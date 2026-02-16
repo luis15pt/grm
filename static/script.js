@@ -17,69 +17,11 @@ console.log('Main script loaded');
 
 // Function declarations need to be available before DOM ready
 function startBackgroundLoading(currentGpuType) {
-    if (window.backgroundLoadingStarted || window.backgroundLoadingInProgress) {
-        return;
-    }
-    
-    if (!window.Frontend?.availableGpuTypes || window.Frontend.availableGpuTypes.length <= 1) {
-        return;
-    }
-    
-    // Get GPU types to load in background (excluding current one and already cached)
-    const typesToLoad = window.Frontend.availableGpuTypes.filter(type => 
-        type !== currentGpuType && !window.gpuDataCache.has(type)
-    );
-    
-    if (typesToLoad.length === 0) {
-        return;
-    }
-    
+    // Background loading is no longer needed - all data is available from
+    // the initial /api/gpu-types call via window.loadedParallelData.
+    // GPU type switching is now instant via client-side processing.
+    console.log('Background loading skipped - parallel data already loaded');
     window.backgroundLoadingStarted = true;
-    window.backgroundLoadingInProgress = true;
-    
-    console.log(`📋 Loading ${typesToLoad.length} GPU types in background: ${typesToLoad.join(', ')}`);
-    window.Logs?.addToDebugLog('System', `Background loading ${typesToLoad.length} GPU types`, 'info');
-    
-    // Show background loading status
-    const statusElement = document.getElementById('backgroundLoadingStatus');
-    if (statusElement) {
-        statusElement.style.display = 'inline';
-    }
-    
-    // Load all types concurrently using Promise.allSettled for better error handling
-    Promise.allSettled(typesToLoad.map(type => window.OpenStack.loadAggregateData(type, true)))
-        .then(results => {
-            // Get successfully cached types
-            const cachedTypes = typesToLoad.filter((type, index) => results[index].status === 'fulfilled');
-            const successful = cachedTypes.length;
-            const failed = results.length - successful;
-            
-            console.log(`📊 Background loading completed: ${successful} successful, ${failed} failed`);
-            console.log(`✅ Successfully cached types: ${cachedTypes.join(', ')}`);
-            window.Logs?.addToDebugLog('System', `Background loading completed: ${successful} successful, ${failed} failed`, 'info');
-            
-            // Hide background loading status
-            if (statusElement) {
-                statusElement.style.display = 'none';
-            }
-            
-            // Update GPU type selector to show cached types with ⚡ indicators
-            window.Frontend?.updateGpuTypeSelector(cachedTypes);
-            
-            // Reset background loading progress
-            window.backgroundLoadingInProgress = false;
-        })
-        .catch(error => {
-            console.error('Background loading error:', error);
-            window.Logs?.addToDebugLog('System', `Background loading error: ${error.message}`, 'error');
-            
-            if (statusElement) {
-                statusElement.style.display = 'none';
-            }
-            
-            // Reset background loading progress
-            window.backgroundLoadingInProgress = false;
-        });
 }
 
 // Make function globally available
@@ -1754,14 +1696,27 @@ function refreshDataWithProgress(selectedType) {
                 const modal = bootstrap.Modal.getInstance(document.getElementById('refreshProgressModal'));
                 if (modal) modal.hide();
                 
-                // Reload current GPU type data with fresh cache
-                window.OpenStack.loadAggregateData(selectedType);
-                
-                // Now load overall GPU usage with fresh data
-                if (window.OpenStack.loadOverallGpuUsage) {
-                    console.log('📊 Loading overall GPU usage with fresh data after refresh...');
-                    window.OpenStack.loadOverallGpuUsage();
+                // Clear stale parallel data so it gets repopulated
+                window.loadedParallelData = null;
+                window.loadedAggregatesData = null;
+                if (window.gpuAggregatesCache) {
+                    window.gpuAggregatesCache.data = null;
+                    window.gpuAggregatesCache.timestamp = null;
                 }
+                if (window.gpuDataCache) {
+                    window.gpuDataCache.clear();
+                }
+
+                // Reload GPU types (repopulates window.loadedParallelData)
+                window.OpenStack.loadGpuTypes();
+
+                // After parallel data is refreshed, reload current view and stats
+                setTimeout(() => {
+                    window.OpenStack.loadAggregateData(selectedType);
+                    if (window.OpenStack.loadOverallGpuUsage) {
+                        window.OpenStack.loadOverallGpuUsage();
+                    }
+                }, 2000);
                 
             }, 1500); // Show completion for 1.5 seconds
             
@@ -1790,10 +1745,14 @@ function refreshAggregateDataAfterOperations() {
     if (selectedType && window.currentGpuType) {
         console.log(`🔄 Refreshing aggregate data after operations completion for GPU type: ${window.currentGpuType}`);
         
-        // Clear frontend cache for this GPU type to force fresh data
+        // Clear frontend caches for this GPU type to force fresh data
         if (window.gpuDataCache && window.gpuDataCache.has(window.currentGpuType)) {
             window.gpuDataCache.delete(window.currentGpuType);
-            console.log(`🗑️ Cleared frontend cache for ${window.currentGpuType} after operations`);
+            console.log(`🗑️ Cleared gpuDataCache for ${window.currentGpuType} after operations`);
+        }
+        if (window.loadedParallelData && window.loadedParallelData[window.currentGpuType]) {
+            delete window.loadedParallelData[window.currentGpuType];
+            console.log(`🗑️ Cleared parallel data for ${window.currentGpuType} after operations`);
         }
         
         // Show brief refresh notification
@@ -2522,38 +2481,12 @@ window.initializeContractColumn = async function initializeContractColumn() {
     }
     
     try {
-        // First get available GPU types
-        const gpuTypesResponse = await window.Utils.fetchWithTimeout('/api/gpu-types', {}, 20000);
-        const gpuTypesData = await gpuTypesResponse.json();
-        
-        if (gpuTypesData.status === 'success' && gpuTypesData.data && gpuTypesData.data.length > 0) {
-            // Use the first GPU type to get contract aggregates
-            const firstGpuType = gpuTypesData.data[0].name;
-            console.log(`📋 Loading contracts for GPU type: ${firstGpuType}`);
-            
-            const contractsResponse = await fetch(`/api/contract-aggregates/${firstGpuType}`);
-            const contractsData = await contractsResponse.json();
-            
-            if (contractsData.status === 'success' && contractsData.data && contractsData.data.length > 0) {
-                console.log(`📋 Found ${contractsData.data.length} available contracts`);
-                
-                // Clear existing options except the default
-                contractSelect.innerHTML = '<option value="">Select Contract...</option>';
-                
-                // Add contract options
-                contractsData.data.forEach(contractData => {
-                    const option = document.createElement('option');
-                    option.value = contractData.aggregate;
-                    option.textContent = contractData.aggregate;
-                    contractSelect.appendChild(option);
-                });
-                
-                console.log('✅ Contract column initialized with available contracts');
-            } else {
-                console.log('ℹ️ No contracts available for this GPU type');
-            }
+        // Use already-loaded parallel data instead of making API calls
+        if (window.loadedParallelData && window.currentGpuType) {
+            console.log('📋 Contract column using already loaded parallel data');
+            await loadContractAggregatesForColumn(window.currentGpuType);
         } else {
-            console.log('ℹ️ No GPU types available');
+            console.log('ℹ️ Parallel data not yet available, contract column will populate on GPU type selection');
         }
     } catch (error) {
         console.error('❌ Error initializing contract column:', error);

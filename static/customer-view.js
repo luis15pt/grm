@@ -46,12 +46,29 @@ class CustomerView {
      */
     async loadGpuTypes() {
         try {
-            console.log('🔍 Loading GPU types for customer view');
+            console.log('🔍 Loading GPU types for customer view from cached data');
+
+            // Use already-loaded data from main app
+            if (window.Frontend?.availableGpuTypes && window.Frontend.availableGpuTypes.length > 0) {
+                this.availableGpuTypes = window.Frontend.availableGpuTypes;
+                this.populateGpuSelect();
+                return;
+            }
+
+            // Brief retry in case main app hasn't finished loading yet
+            await new Promise(resolve => setTimeout(resolve, 500));
+            if (window.Frontend?.availableGpuTypes && window.Frontend.availableGpuTypes.length > 0) {
+                this.availableGpuTypes = window.Frontend.availableGpuTypes;
+                this.populateGpuSelect();
+                return;
+            }
+
+            // Last resort: make the API call
+            console.warn('Cached GPU types not available, falling back to API');
             const response = await window.Utils.fetchWithTimeout('/api/gpu-types', {}, 20000);
             const data = await response.json();
-            
-            if (data.status === 'success' && data.data) {
-                this.availableGpuTypes = data.data;
+            if (data.gpu_types) {
+                this.availableGpuTypes = data.gpu_types;
                 this.populateGpuSelect();
             }
         } catch (error) {
@@ -105,11 +122,25 @@ class CustomerView {
      */
     async loadContracts(gpuType) {
         try {
-            console.log(`🔍 Loading contracts for GPU type: ${gpuType}`);
-            const response = await fetch(`/api/contract-aggregates/${gpuType}`);
-            const data = await response.json();
-            
-            if (data.contracts) {
+            console.log(`🔍 Loading contracts for GPU type: ${gpuType} from cached data`);
+
+            // Use cached parallel data via existing utility
+            let data = null;
+            if (window.OpenStack?.getContractAggregatesDirectly) {
+                data = window.OpenStack.getContractAggregatesDirectly(gpuType);
+            }
+            if (!data && window.OpenStack?.getContractAggregatesFromCache) {
+                data = window.OpenStack.getContractAggregatesFromCache(gpuType);
+            }
+
+            // Last resort: API call
+            if (!data) {
+                console.warn('Cache miss for contracts, falling back to API');
+                const response = await fetch(`/api/contract-aggregates/${gpuType}`);
+                data = await response.json();
+            }
+
+            if (data?.contracts) {
                 this.availableContracts = data.contracts;
                 this.populateContractSelect();
             } else {
@@ -725,137 +756,58 @@ class CustomerView {
     async updateOverallStatistics() {
         if (!this.currentGpuType) return;
 
-        console.log('📊 Loading overall statistics for all contracts and base aggregates');
+        console.log('📊 Computing overall statistics from cached parallel data');
 
         try {
-            console.log(`📊 Loading overall statistics for GPU type: ${this.currentGpuType}`);
-            
-            // Get base aggregate data (on-demand, runpod, spot)
-            const baseAggregateResponse = await fetch(`/api/aggregates/${this.currentGpuType}`);
-            const baseAggregateData = await baseAggregateResponse.json();
-            console.log('📊 Base aggregate data:', baseAggregateData);
+            const parallelData = window.loadedParallelData;
+            if (!parallelData || !parallelData[this.currentGpuType]) {
+                console.warn('Parallel data not available for overall stats');
+                return;
+            }
 
-            // Get all contract data
-            const contractResponse = await fetch(`/api/contract-aggregates/${this.currentGpuType}`);
-            const contractData = await contractResponse.json();
-            console.log('📊 Contract data:', contractData);
-
-            // Calculate overall statistics
+            const gpuData = parallelData[this.currentGpuType];
             let totalGpus = 0;
             let usedGpus = 0;
             let availableHosts = 0;
             let inUseHosts = 0;
 
-            // Process base aggregate data (on-demand, runpod, spot)
-            console.log('📊 Processing base aggregate data');
-            if (baseAggregateData.ondemand && baseAggregateData.ondemand.hosts) {
-                const stats = this.calculateHostStats(baseAggregateData.ondemand.hosts);
-                totalGpus += stats.totalGpus;
-                usedGpus += stats.usedGpus;
-                availableHosts += stats.availableHosts;
-                inUseHosts += stats.inUseHosts;
-                console.log(`  └─ OnDemand: ${stats.totalGpus} total GPUs, ${stats.usedGpus} used GPUs`);
-            }
-
-            if (baseAggregateData.runpod && baseAggregateData.runpod.hosts) {
-                const stats = this.calculateHostStats(baseAggregateData.runpod.hosts);
-                totalGpus += stats.totalGpus;
-                usedGpus += stats.usedGpus;
-                availableHosts += stats.availableHosts;
-                inUseHosts += stats.inUseHosts;
-                console.log(`  └─ Runpod: ${stats.totalGpus} total GPUs, ${stats.usedGpus} used GPUs`);
-            }
-
-            if (baseAggregateData.spot && baseAggregateData.spot.hosts) {
-                const stats = this.calculateHostStats(baseAggregateData.spot.hosts);
-                totalGpus += stats.totalGpus;
-                usedGpus += stats.usedGpus;
-                availableHosts += stats.availableHosts;
-                inUseHosts += stats.inUseHosts;
-                console.log(`  └─ Spot: ${stats.totalGpus} total GPUs, ${stats.usedGpus} used GPUs`);
-            }
-
-            // Process all contract data
-            if (contractData.contracts && contractData.contracts.length > 0) {
-                console.log(`📊 Processing ${contractData.contracts.length} contracts for overall statistics`);
-                
-                // For overall statistics, we need to load each contract's detailed data
-                for (const contract of contractData.contracts) {
-                    console.log(`📋 Contract: ${contract.name} - ${contract.host_count} hosts`);
-                    
-                    // Skip contracts with no hosts
-                    if (contract.host_count === 0) {
-                        console.log(`  └─ Skipping ${contract.name} (0 hosts)`);
-                        continue;
-                    }
-                    
-                    // If the contract has hosts but no host details, we need to load them
-                    if (contract.host_count > 0 && (!contract.hosts || contract.hosts.length === 0)) {
-                        console.log(`  └─ Loading detailed data for ${contract.name}`);
-                        try {
-                            // The contract data in the list may not have full host details
-                            // We need to get it from the same API but ensure we have host details
-                            const detailedResponse = await fetch(`/api/contract-aggregates/${this.currentGpuType}`);
-                            const detailedData = await detailedResponse.json();
-                            const detailedContract = detailedData.contracts.find(c => c.aggregate === contract.aggregate);
-                            
-                            if (detailedContract && detailedContract.hosts && detailedContract.hosts.length > 0) {
-                                const stats = this.calculateHostStats(detailedContract.hosts);
-                                totalGpus += stats.totalGpus;
-                                usedGpus += stats.usedGpus;
-                                availableHosts += stats.availableHosts;
-                                inUseHosts += stats.inUseHosts;
-                                console.log(`  └─ Added ${stats.totalGpus} total GPUs, ${stats.usedGpus} used GPUs from detailed data`);
-                            }
-                        } catch (error) {
-                            console.error(`  └─ Error loading detailed data for ${contract.name}:`, error);
-                        }
-                    } else if (contract.hosts && contract.hosts.length > 0) {
-                        // Contract already has host details
-                        const stats = this.calculateHostStats(contract.hosts);
-                        totalGpus += stats.totalGpus;
-                        usedGpus += stats.usedGpus;
-                        availableHosts += stats.availableHosts;
-                        inUseHosts += stats.inUseHosts;
-                        console.log(`  └─ Added ${stats.totalGpus} total GPUs, ${stats.usedGpus} used GPUs from existing data`);
-                    }
+            // Sum GPU summaries from each pool
+            ['ondemand', 'runpod', 'spot', 'contract'].forEach(category => {
+                const summary = gpuData[category]?.gpu_summary;
+                if (summary) {
+                    usedGpus += summary.gpu_used || 0;
+                    totalGpus += summary.gpu_capacity || 0;
                 }
-            } else {
-                console.log('📊 No contract data found');
-            }
+            });
 
-            // Update the display with overall statistics
+            // Count hosts
+            const hosts = gpuData.hosts || [];
+            hosts.forEach(host => {
+                if ((host.vm_count || 0) > 0) {
+                    inUseHosts++;
+                } else {
+                    availableHosts++;
+                }
+            });
+
             const gpuUsagePercent = totalGpus > 0 ? Math.round((usedGpus / totalGpus) * 100) : 0;
-            
-            console.log(`📊 FINAL TOTALS: ${usedGpus}/${totalGpus} GPUs (${gpuUsagePercent}%), ${availableHosts} available, ${inUseHosts} in use`);
 
-            // Update single contract stats (used when not in dual mode)
+            // Update UI elements
             const gpuUsageElement = document.getElementById('customerViewGpuUsage');
             const gpuProgressBar = document.getElementById('customerViewGpuProgressBar');
             const availableHostsElement = document.getElementById('customerViewAvailableHosts');
             const inUseHostsElement = document.getElementById('customerViewInUseHosts');
 
-            if (gpuUsageElement) {
-                gpuUsageElement.textContent = `${usedGpus}/${totalGpus} GPUs (${gpuUsagePercent}%)`;
-            }
-            if (gpuProgressBar) {
-                gpuProgressBar.style.width = `${gpuUsagePercent}%`;
-            }
-            if (availableHostsElement) {
-                availableHostsElement.textContent = availableHosts.toString();
-            }
-            if (inUseHostsElement) {
-                inUseHostsElement.textContent = inUseHosts.toString();
-            }
+            if (gpuUsageElement) gpuUsageElement.textContent = `${usedGpus}/${totalGpus} GPUs (${gpuUsagePercent}%)`;
+            if (gpuProgressBar) gpuProgressBar.style.width = `${gpuUsagePercent}%`;
+            if (availableHostsElement) availableHostsElement.textContent = availableHosts.toString();
+            if (inUseHostsElement) inUseHostsElement.textContent = inUseHosts.toString();
 
-            // Update contract name to show "Overall"
             const contractNameElement = document.getElementById('customerViewContractName');
             if (contractNameElement && !this.isDualMode) {
                 contractNameElement.textContent = 'Overall';
             }
 
-            console.log(`📊 Overall statistics: ${usedGpus}/${totalGpus} GPUs (${gpuUsagePercent}%), ${availableHosts} available, ${inUseHosts} in use`);
-            
             // Show message in content area when in overall view
             if (!this.isDualMode) {
                 const contentContainer = document.getElementById('customerViewContent');
@@ -872,7 +824,7 @@ class CustomerView {
             }
 
         } catch (error) {
-            console.error('❌ Error loading overall statistics:', error);
+            console.error('❌ Error computing overall statistics:', error);
             this.showErrorMessage();
         }
     }
@@ -1269,24 +1221,28 @@ class CustomerView {
                 return;
             }
 
-            const response = await fetch(`/api/contract-aggregates/${currentGpuType}`);
-            const data = await response.json();
-            
-            if (data.contracts) {
+            // Use cached data instead of API call
+            let data = null;
+            if (window.OpenStack?.getContractAggregatesDirectly) {
+                data = window.OpenStack.getContractAggregatesDirectly(currentGpuType);
+            }
+            if (!data) {
+                console.warn('Cache miss for contract data, falling back to API');
+                const response = await fetch(`/api/contract-aggregates/${currentGpuType}`);
+                data = await response.json();
+            }
+
+            if (data?.contracts) {
                 const selectedContract = data.contracts.find(c => c.aggregate === selectedContractAggregate);
                 if (selectedContract) {
                     this.currentContractData = selectedContract;
                     this.currentGpuType = currentGpuType;
-                    
-                    // Update customer view displays
+
                     const contractNameElement = document.getElementById('customerViewContractName');
                     if (contractNameElement) {
                         contractNameElement.textContent = selectedContract.name;
                     }
-                    
-                    // Selection controls are already minimal - just show close button
-                    
-                    // Render the customer view
+
                     await this.renderCustomerView(selectedContract);
                 } else {
                     this.showContractNotFoundMessage();

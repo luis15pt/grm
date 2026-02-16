@@ -2685,11 +2685,17 @@ async function onBranchChange(event) {
         // Clear only NetBox-related caches (not OpenStack/VM data)
         await fetch('/api/clear-netbox-cache', { method: 'POST' });
 
-        // Clear frontend GPU data cache to force fresh data fetch from parallel agents
+        // Clear all frontend caches to force fresh data fetch from parallel agents
         if (window.gpuDataCache) {
             window.gpuDataCache.clear();
-            console.log('🧹 Cleared frontend GPU data cache for branch switch');
         }
+        window.loadedParallelData = null;
+        window.loadedAggregatesData = null;
+        if (window.gpuAggregatesCache) {
+            window.gpuAggregatesCache.data = null;
+            window.gpuAggregatesCache.timestamp = null;
+        }
+        console.log('🧹 Cleared all frontend caches for branch switch');
 
         // Reload current GPU type data by triggering the GPU type select change event
         const gpuTypeSelect = document.getElementById('gpuTypeSelect');

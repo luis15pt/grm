@@ -54,7 +54,14 @@ function executeHostMigration(hostname, sourceAggregate, targetAggregate, operat
                     if (!window.refreshedGpuTypes) window.refreshedGpuTypes = new Set();
                     data.affected_gpu_types.forEach(gpuType => {
                         window.refreshedGpuTypes.add(gpuType);
-                        console.log(`📝 Marked GPU type '${gpuType}' as needing frontend refresh`);
+                        // Invalidate parallel_data and gpuDataCache for affected types
+                        if (window.loadedParallelData && window.loadedParallelData[gpuType]) {
+                            delete window.loadedParallelData[gpuType];
+                        }
+                        if (window.gpuDataCache) {
+                            window.gpuDataCache.delete(gpuType);
+                        }
+                        console.log(`📝 Invalidated caches for GPU type '${gpuType}'`);
                     });
                     
                     // If currently viewing one of the affected GPU types, refresh immediately
@@ -95,33 +102,41 @@ function loadAggregateData(gpuType, isBackgroundLoad = false) {
         window.refreshedGpuTypes.delete(gpuType); // Remove flag after handling
     }
     
-    // Check cache first (unless fresh data is needed)
+    // Check gpuDataCache first (unless fresh data is needed)
     if (!needsFreshData && window.gpuDataCache && window.gpuDataCache.has(gpuType)) {
-        console.log(`✅ Loading ${gpuType} from cache`);
+        console.log(`✅ Loading ${gpuType} from gpuDataCache`);
         if (!isBackgroundLoad) {
             const cachedData = window.gpuDataCache.get(gpuType);
-            console.log(`🔍 DEBUG: Cached data for ${gpuType}:`, {
-                gpu_type: cachedData.gpu_type,
-                spot: cachedData.spot?.name,
-                ondemand: cachedData.ondemand?.name,
-                runpod: cachedData.runpod?.name
-            });
             window.Frontend.aggregateData = cachedData;
             window.Frontend.renderAggregateData(cachedData);
             window.Frontend.showMainContent();
-            
-            // Start background loading after first successful load
-            if (!window.backgroundLoadingStarted) {
-                window.startBackgroundLoading(gpuType);
-            }
         }
         return Promise.resolve(window.gpuDataCache.get(gpuType));
     }
-    
+
+    // Try processing from parallel_data client-side (no API call needed)
+    if (!needsFreshData) {
+        const processedData = processParallelDataForGpuType(gpuType);
+        if (processedData) {
+            console.log(`✅ Processed ${gpuType} from parallel_data cache (no API call)`);
+            // Cache the processed data
+            if (window.gpuDataCache) {
+                window.gpuDataCache.set(gpuType, processedData);
+            }
+            window.Frontend.aggregateData = processedData;
+            if (!isBackgroundLoad) {
+                window.Frontend.renderAggregateData(processedData);
+                window.Frontend.showMainContent();
+            }
+            return Promise.resolve(processedData);
+        }
+    }
+
+    // Fallback: fetch from API (only when parallel_data is not available)
     if (!isBackgroundLoad) {
         window.Frontend.showLoading(true, `Loading ${gpuType} aggregate data...`, 'Discovering aggregates...', 10);
     }
-    
+
     return window.Utils.fetchWithTimeout(`/api/aggregates/${gpuType}`, {}, 30000)
         .then(window.Utils.checkResponse)
         .then(response => {
@@ -164,15 +179,10 @@ function loadAggregateData(gpuType, isBackgroundLoad = false) {
                 window.Frontend.updateLoadingProgress('Rendering interface...', 90);
                 window.Frontend.renderAggregateData(data);
                 window.Frontend.updateLoadingProgress('Complete!', 100);
-                
+
                 setTimeout(() => {
                     window.Frontend.showLoading(false);
                     window.Frontend.showMainContent();
-                    
-                    // Start background loading after first successful load
-                    if (!window.backgroundLoadingStarted) {
-                        window.startBackgroundLoading(gpuType);
-                    }
                 }, 500);
             }
             
@@ -191,154 +201,91 @@ function loadAggregateData(gpuType, isBackgroundLoad = false) {
         });
 }
 
-// Load overall GPU usage data across all GPU types
+// Load overall GPU usage data across all GPU types — computed from cached parallel_data (no API calls)
 async function loadOverallGpuUsage() {
-    console.log('📊 Loading overall GPU usage across all types...');
-    
+    console.log('📊 Computing overall GPU usage from cached parallel data...');
+
     // Show loading state
     document.getElementById('totalGpuUsage').textContent = 'Loading...';
     document.getElementById('gpuUsagePercentage').textContent = '';
     document.getElementById('availableHostsCount').textContent = '0';
     document.getElementById('inUseHostsCount').textContent = '0';
-    
+
     try {
-        console.log('🔍 Making API call to /api/gpu-types...');
-        const response = await window.Utils.fetchWithTimeout('/api/gpu-types', {}, 15000);
-        console.log('✅ Got response:', response.status, response.statusText);
-        const data = await response.json();
-        console.log('📊 GPU types data:', data);
-        
-        if (data.gpu_types && data.gpu_types.length > 0) {
-            console.log(`📊 Loading usage data for ${data.gpu_types.length} GPU types concurrently:`, data.gpu_types);
-            
-            // Load data for all GPU types concurrently
-            const loadPromises = data.gpu_types.map(async (gpuType) => {
-                try {
-                    console.log(`🔍 Loading data for GPU type: ${gpuType}`);
-                    const response = await window.Utils.fetchWithTimeout(`/api/aggregates/${gpuType}`, {}, 20000);
-                    console.log(`✅ Got response for ${gpuType}:`, response.status);
-                    const gpuData = await response.json();
-                    console.log(`📊 Data for ${gpuType}:`, gpuData.status || 'no status', gpuData.error || 'no error');
-                    return { gpuType, data: gpuData };
-                } catch (error) {
-                    console.warn(`⚠️ Failed to load data for ${gpuType}:`, error);
-                    return { gpuType, data: null };
-                }
-            });
-            
-            const results = await Promise.allSettled(loadPromises);
-            console.log('📊 Promise results:', results.length, 'results');
-            
-            // Aggregate all the data
-            let totalGpuUsed = 0;
-            let totalGpuCapacity = 0;
-            let totalAvailableHosts = 0;
-            let totalInUseHosts = 0;
-            
-            results.forEach((result, index) => {
-                console.log(`📊 Processing result ${index}:`, result.status, result.value?.gpuType);
-                if (result.status === 'fulfilled' && result.value.data && !result.value.data.error) {
-                    const gpuData = result.value.data;
-                    console.log(`📊 Processing GPU data for ${result.value.gpuType}:`, {
-                        hasRunpod: !!gpuData.runpod,
-                        hasSpot: !!gpuData.spot,
-                        hasOndemand: !!gpuData.ondemand,
-                        runpodGpuSummary: gpuData.runpod?.gpu_summary,
-                        spotGpuSummary: gpuData.spot?.gpu_summary, 
-                        ondemandGpuSummary: gpuData.ondemand?.gpu_summary,
-                        fullData: gpuData
-                    });
-                    
-                    // Add RunPod GPUs
-                    if (gpuData.runpod && gpuData.runpod.gpu_summary) {
-                        totalGpuUsed += gpuData.runpod.gpu_summary.gpu_used || 0;
-                        totalGpuCapacity += gpuData.runpod.gpu_summary.gpu_capacity || 0;
-                    }
-                    
-                    // Add Spot GPUs
-                    if (gpuData.spot && gpuData.spot.gpu_summary) {
-                        totalGpuUsed += gpuData.spot.gpu_summary.gpu_used || 0;
-                        totalGpuCapacity += gpuData.spot.gpu_summary.gpu_capacity || 0;
-                    }
-                    
-                    // Add On-Demand GPUs
-                    if (gpuData.ondemand && gpuData.ondemand.gpu_summary) {
-                        totalGpuUsed += gpuData.ondemand.gpu_summary.gpu_used || 0;
-                        totalGpuCapacity += gpuData.ondemand.gpu_summary.gpu_capacity || 0;
-                    }
-                    
-                    // Count hosts
-                    [gpuData.runpod.hosts, gpuData.spot.hosts, gpuData.ondemand.hosts].forEach(hostArray => {
-                        if (hostArray) {
-                            hostArray.forEach(host => {
-                                if (host.has_vms) {
-                                    totalInUseHosts++;
-                                } else {
-                                    totalAvailableHosts++;
-                                }
-                            });
-                        }
-                    });
-                }
-            });
-            
-            // Update the overview display
-            const totalGpuPercentage = totalGpuCapacity > 0 ? Math.round((totalGpuUsed / totalGpuCapacity) * 100) : 0;
-            
-            console.log(`📊 FINAL TOTALS - GPU Usage: ${totalGpuUsed}/${totalGpuCapacity} GPUs (${totalGpuPercentage}%)`);
-            console.log(`🏠 FINAL TOTALS - Hosts: ${totalAvailableHosts} available, ${totalInUseHosts} in use`);
-            console.log('🎯 About to update UI elements...');
-            
-            // Update UI elements
-            const totalGpuElement = document.getElementById('totalGpuUsage');
-            const gpuPercentElement = document.getElementById('gpuUsagePercentage');
-            const availableHostsElement = document.getElementById('availableHostsCount');
-            const inUseHostsElement = document.getElementById('inUseHostsCount');
-            
-            totalGpuElement.textContent = `${totalGpuUsed}/${totalGpuCapacity} GPUs`;
-            totalGpuElement.className = 'badge bg-primary fs-6'; // Restore proper color
-            
-            gpuPercentElement.textContent = `${totalGpuPercentage}%`;
-            gpuPercentElement.className = 'badge bg-success fs-6 ms-2'; // Restore proper color
-            
-            availableHostsElement.textContent = totalAvailableHosts;
-            availableHostsElement.className = 'badge bg-success fs-6'; // Restore proper color
-            
-            inUseHostsElement.textContent = totalInUseHosts;
-            inUseHostsElement.className = 'badge bg-warning fs-6'; // Restore proper color
-            
-            document.getElementById('gpuProgressBar').style.width = `${totalGpuPercentage}%`;
-            document.getElementById('gpuProgressText').textContent = `${totalGpuPercentage}%`;
-            
-            // Update progress bar color
-            const progressBar = document.getElementById('gpuProgressBar');
-            progressBar.className = 'progress-bar';
-            if (totalGpuPercentage < 50) {
-                progressBar.classList.add('bg-success');
-            } else if (totalGpuPercentage < 80) {
-                progressBar.classList.add('bg-warning');
-            } else {
-                progressBar.classList.add('bg-danger');
-            }
-            
-            window.Logs?.addToDebugLog('OpenStack', `Overall GPU usage loaded: ${totalGpuUsed}/${totalGpuCapacity} (${totalGpuPercentage}%)`, 'info');
-            
-        } else {
-            console.error('❌ Failed to get valid GPU types data:', {
-                hasGpuTypes: !!data.gpu_types,
-                gpuTypesLength: data.gpu_types?.length || 0,
-                data: data
-            });
-            
-            // Show error state
-            document.getElementById('totalGpuUsage').textContent = 'No GPU types found';
-            document.getElementById('gpuUsagePercentage').textContent = 'N/A';
+        const parallelData = window.loadedParallelData;
+        if (!parallelData) {
+            console.warn('Parallel data not loaded yet, skipping overall GPU usage');
+            return;
         }
+
+        let totalGpuUsed = 0;
+        let totalGpuCapacity = 0;
+        let totalAvailableHosts = 0;
+        let totalInUseHosts = 0;
+
+        Object.keys(parallelData).forEach(gpuType => {
+            if (gpuType.startsWith('_')) return;
+            const gpuData = parallelData[gpuType];
+            if (!gpuData) return;
+
+            // Sum GPU summaries from each pool
+            ['ondemand', 'runpod', 'spot', 'contract'].forEach(category => {
+                const summary = gpuData[category]?.gpu_summary;
+                if (summary) {
+                    totalGpuUsed += summary.gpu_used || 0;
+                    totalGpuCapacity += summary.gpu_capacity || 0;
+                }
+            });
+
+            // Count hosts
+            const hosts = gpuData.hosts || [];
+            hosts.forEach(host => {
+                if ((host.vm_count || 0) > 0) {
+                    totalInUseHosts++;
+                } else {
+                    totalAvailableHosts++;
+                }
+            });
+        });
+
+        const totalGpuPercentage = totalGpuCapacity > 0 ? Math.round((totalGpuUsed / totalGpuCapacity) * 100) : 0;
+
+        // Update UI elements
+        const totalGpuElement = document.getElementById('totalGpuUsage');
+        const gpuPercentElement = document.getElementById('gpuUsagePercentage');
+        const availableHostsElement = document.getElementById('availableHostsCount');
+        const inUseHostsElement = document.getElementById('inUseHostsCount');
+
+        totalGpuElement.textContent = `${totalGpuUsed}/${totalGpuCapacity} GPUs`;
+        totalGpuElement.className = 'badge bg-primary fs-6';
+
+        gpuPercentElement.textContent = `${totalGpuPercentage}%`;
+        gpuPercentElement.className = 'badge bg-success fs-6 ms-2';
+
+        availableHostsElement.textContent = totalAvailableHosts;
+        availableHostsElement.className = 'badge bg-success fs-6';
+
+        inUseHostsElement.textContent = totalInUseHosts;
+        inUseHostsElement.className = 'badge bg-warning fs-6';
+
+        document.getElementById('gpuProgressBar').style.width = `${totalGpuPercentage}%`;
+        document.getElementById('gpuProgressText').textContent = `${totalGpuPercentage}%`;
+
+        const progressBar = document.getElementById('gpuProgressBar');
+        progressBar.className = 'progress-bar';
+        if (totalGpuPercentage < 50) {
+            progressBar.classList.add('bg-success');
+        } else if (totalGpuPercentage < 80) {
+            progressBar.classList.add('bg-warning');
+        } else {
+            progressBar.classList.add('bg-danger');
+        }
+
+        window.Logs?.addToDebugLog('OpenStack', `Overall GPU usage computed from cache: ${totalGpuUsed}/${totalGpuCapacity} (${totalGpuPercentage}%)`, 'info');
+
     } catch (error) {
-        console.error('❌ Error loading overall GPU usage:', error);
-        window.Logs?.addToDebugLog('OpenStack', `Error loading overall GPU usage: ${error.message}`, 'error');
-        
-        // Show error state
+        console.error('Error computing overall GPU usage:', error);
+        window.Logs?.addToDebugLog('OpenStack', `Error computing overall GPU usage: ${error.message}`, 'error');
         document.getElementById('totalGpuUsage').textContent = 'Error loading data';
         document.getElementById('gpuUsagePercentage').textContent = 'N/A';
         document.getElementById('availableHostsCount').textContent = '0';
@@ -780,6 +727,206 @@ function executeNetworkCommand(command) {
 }
 
 
+// Process parallel_data client-side to produce the same shape as /api/aggregates/<gpu_type>
+// This mirrors the Python logic in app_routes.py:264-551 (process_hosts_from_parallel_data + response assembly)
+function processParallelDataForGpuType(gpuType) {
+    if (!window.loadedParallelData) return null;
+
+    const gpuData = window.loadedParallelData[gpuType];
+    if (!gpuData) return null;
+
+    const config = gpuData.config || {};
+    const allHosts = gpuData.hosts || [];
+
+    // Special handling for outofstock
+    if (gpuType === 'outofstock') {
+        const hostsData = gpuData.hosts || [];
+        return {
+            gpu_type: 'outofstock',
+            outofstock: {
+                name: gpuData.name || 'Out of Stock',
+                hosts: hostsData,
+                gpu_summary: gpuData.gpu_summary || { gpu_used: 0, gpu_capacity: 0, gpu_usage_ratio: '0/0' }
+            },
+            performance_stats: { total_time: 0, total_hosts: hostsData.length, hosts_per_second: 0, method: 'client_cache' }
+        };
+    }
+
+    // Classify hosts by assignment (mirrors app_routes.py:278-329)
+    const ondemandHostnames = [];
+    const runpodHostnames = [];
+    const spotHostnames = [];
+    const contractHostnames = [];
+    const ondemandHostVariants = {};
+    const contractHostMappings = {};
+
+    for (const hostData of allHosts) {
+        const hostname = hostData.hostname;
+        const aggregate = hostData.aggregate;
+        const assignment = hostData._assignment;
+
+        if (assignment === 'runpod' || (config.runpod && aggregate === config.runpod)) {
+            runpodHostnames.push(hostname);
+        } else if (assignment === 'spot' || (config.spot && aggregate === config.spot)) {
+            spotHostnames.push(hostname);
+        } else if (assignment === 'ondemand') {
+            ondemandHostnames.push(hostname);
+            let matchedVariant = false;
+            if (config.ondemand_variants) {
+                for (const variant of config.ondemand_variants) {
+                    if (aggregate === variant.aggregate) {
+                        ondemandHostVariants[hostname] = variant.variant;
+                        matchedVariant = true;
+                        break;
+                    }
+                }
+            }
+            if (!matchedVariant && aggregate) {
+                ondemandHostVariants[hostname] = aggregate;
+            }
+        } else if (config.ondemand_variants) {
+            for (const variant of config.ondemand_variants) {
+                if (aggregate === variant.aggregate) {
+                    ondemandHostnames.push(hostname);
+                    ondemandHostVariants[hostname] = variant.variant;
+                    break;
+                }
+            }
+        }
+
+        // Contracts can coexist with other types
+        if (assignment === 'contract' || config.contracts) {
+            if (config.contracts) {
+                for (const contract of config.contracts) {
+                    if (aggregate === contract.aggregate) {
+                        if (!contractHostnames.includes(hostname)) {
+                            contractHostnames.push(hostname);
+                        }
+                        contractHostMappings[hostname] = {
+                            contract_aggregate: contract.aggregate,
+                            contract_name: contract.name
+                        };
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // Process hosts for each pool (mirrors app_routes.py:335-407)
+    function processHosts(hostnameList, aggregateType) {
+        const processed = [];
+        for (const hostname of hostnameList) {
+            const hostInfo = allHosts.find(h => h.hostname === hostname);
+            if (!hostInfo) continue;
+
+            const tenantInfo = hostInfo.tenant_info || {
+                tenant: hostInfo.tenant || 'Unknown',
+                owner_group: hostInfo.owner_group || 'Investors',
+                nvlinks: hostInfo.nvlinks || false,
+                netbox_device_id: hostInfo.netbox_device_id || null,
+                netbox_url: hostInfo.netbox_url || null
+            };
+
+            const host = {
+                name: hostname,
+                vm_count: hostInfo.vm_count || 0,
+                has_vms: (hostInfo.vm_count || 0) > 0,
+                tenant: tenantInfo.tenant,
+                owner_group: tenantInfo.owner_group,
+                nvlinks: tenantInfo.nvlinks,
+                netbox_device_id: tenantInfo.netbox_device_id,
+                netbox_url: tenantInfo.netbox_url,
+                gpu_used: hostInfo.gpu_used || 0,
+                gpu_capacity: hostInfo.gpu_capacity || 8,
+                gpu_usage_ratio: hostInfo.gpu_usage_ratio || '0/8'
+            };
+
+            if (aggregateType === 'ondemand' && ondemandHostVariants[hostname]) {
+                host.variant = ondemandHostVariants[hostname];
+            } else if (aggregateType === 'contracts' && contractHostMappings[hostname]) {
+                host.contract_aggregate = contractHostMappings[hostname].contract_aggregate;
+                host.contract_name = contractHostMappings[hostname].contract_name;
+            }
+
+            processed.push(host);
+        }
+        return processed;
+    }
+
+    const ondemandData = processHosts(ondemandHostnames, 'ondemand');
+    const runpodData = processHosts(runpodHostnames, 'runpod');
+    const spotData = processHosts(spotHostnames, 'spot');
+    const contractData = processHosts(contractHostnames, 'contracts');
+
+    // GPU summaries from pre-calculated backend data
+    const defaultSummary = { gpu_used: 0, gpu_capacity: 0, gpu_usage_ratio: '0/0' };
+    const ondemandGpuSummary = gpuData.ondemand?.gpu_summary || defaultSummary;
+    const runpodGpuSummary = gpuData.runpod?.gpu_summary || defaultSummary;
+    const spotGpuSummary = gpuData.spot?.gpu_summary || defaultSummary;
+    const contractGpuSummary = gpuData.contract?.gpu_summary || defaultSummary;
+    const outofstockGpuSummary = gpuData.outofstock?.gpu_summary || defaultSummary;
+    const outofstockHosts = gpuData.outofstock?.hosts || [];
+
+    // Overall GPU summary
+    const totalGpuUsed = ondemandGpuSummary.gpu_used + runpodGpuSummary.gpu_used + spotGpuSummary.gpu_used + contractGpuSummary.gpu_used;
+    const totalGpuCapacity = ondemandGpuSummary.gpu_capacity + runpodGpuSummary.gpu_capacity + spotGpuSummary.gpu_capacity + contractGpuSummary.gpu_capacity;
+    const gpuUsagePercentage = totalGpuCapacity > 0 ? Math.round((totalGpuUsed / totalGpuCapacity) * 1000) / 10 : 0;
+
+    // Build on-demand name
+    let ondemandName = config.ondemand || 'N/A';
+    if (config.ondemand_variants && config.ondemand_variants.length > 1) {
+        ondemandName = `${gpuType}-n3 (${config.ondemand_variants.length} variants)`;
+    } else if (config.ondemand_variants && config.ondemand_variants.length === 1) {
+        ondemandName = config.ondemand_variants[0].variant;
+    }
+
+    const totalHosts = ondemandHostnames.length + runpodHostnames.length + spotHostnames.length + contractHostnames.length;
+
+    return {
+        gpu_type: gpuType,
+        ondemand: {
+            name: ondemandName,
+            hosts: ondemandData,
+            gpu_summary: ondemandGpuSummary,
+            variants: config.ondemand_variants || []
+        },
+        runpod: {
+            name: config.runpod || 'N/A',
+            hosts: runpodData,
+            gpu_summary: runpodGpuSummary
+        },
+        spot: {
+            name: config.spot || 'N/A',
+            hosts: spotData,
+            gpu_summary: spotGpuSummary
+        },
+        contracts: {
+            name: `Contracts (${(config.contracts || []).length} contracts)`,
+            hosts: contractData,
+            gpu_summary: contractGpuSummary,
+            contracts_list: config.contracts || []
+        },
+        outofstock: {
+            name: 'Out of Stock',
+            hosts: outofstockHosts,
+            gpu_summary: outofstockGpuSummary
+        },
+        gpu_overview: {
+            total_gpu_used: totalGpuUsed,
+            total_gpu_capacity: totalGpuCapacity,
+            gpu_usage_ratio: `${totalGpuUsed}/${totalGpuCapacity}`,
+            gpu_usage_percentage: gpuUsagePercentage
+        },
+        performance_stats: {
+            total_time: 0,
+            total_hosts: totalHosts,
+            hosts_per_second: 0,
+            method: 'client_cache'
+        }
+    };
+}
+
 // Get contract aggregates directly from already loaded data (no API calls needed)
 function getContractAggregatesDirectly(gpuType) {
     console.log(`📋 Getting contract aggregates directly for GPU type: ${gpuType}`);
@@ -897,5 +1044,6 @@ window.OpenStack = {
     generateMigrationCommands,
     executeNetworkCommand,
     getContractAggregatesFromCache,
-    getContractAggregatesDirectly
+    getContractAggregatesDirectly,
+    processParallelDataForGpuType
 };
