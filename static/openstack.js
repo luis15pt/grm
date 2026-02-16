@@ -416,19 +416,23 @@ function loadGpuTypes() {
                 });
             }
             
-            // Hide progress modal if it's showing (initial load)
+            // Hide progress modal if it's showing (initial load / branch switch)
             const progressModal = document.getElementById('refreshProgressModal');
             if (progressModal) {
                 const modal = bootstrap.Modal.getInstance(progressModal);
                 if (modal && progressModal.classList.contains('show')) {
                     console.log('🏁 Initial loading completed - hiding progress modal');
+                    // Populate real counts before showing completion
+                    if (window.updateProgressCountsFromData && data.parallel_data) {
+                        window.updateProgressCountsFromData(data.parallel_data);
+                    }
                     // Update progress to 100% and show completion message
                     if (typeof updateProgress === 'function') {
-                        updateProgress('complete', 'Initial loading completed!', 100);
+                        updateProgress('complete', 'Loading completed!', 100);
                     }
                     setTimeout(() => {
                         modal.hide();
-                    }, 1500); // Give user time to see completion
+                    }, 2000); // Give user time to see counts + completion
                 }
             }
         })

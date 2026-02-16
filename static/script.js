@@ -1496,9 +1496,21 @@ function refreshData() {
 function showProgressModal() {
     const modal = new bootstrap.Modal(document.getElementById('refreshProgressModal'));
     modal.show();
-    
+
     // Reset progress state
     updateProgress('clearing', 'Initializing...', 0);
+
+    // Reset count hints to "Loading..."
+    ['netbox-count-hint', 'aggregates-count-hint', 'vms-count-hint', 'gpus-count-hint'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = 'Loading...';
+    });
+    // Reset organizing step text
+    const orgStep = document.getElementById('step-organizing');
+    if (orgStep) {
+        const span = orgStep.querySelector('.flex-grow-1');
+        if (span) span.innerHTML = 'Organizing data by GPU types...';
+    }
 }
 
 function updateProgress(stage, message, progress) {
@@ -1550,6 +1562,99 @@ function getStepProgress(stepName) {
     return stepProgresses[stepName] || 0;
 }
 
+/**
+ * Update progress modal step hints with real counts from parallel_data.
+ * Called after loadGpuTypes receives data and before the modal is hidden.
+ */
+function updateProgressCountsFromData(parallelData) {
+    if (!parallelData) return;
+
+    try {
+        const gpuTypes = Object.keys(parallelData).filter(k => !k.startsWith('_'));
+
+        // NetBox devices — use inventory validation total or sum total_hosts
+        const validation = parallelData._inventory_validation;
+        const netboxTotal = validation ? validation.netbox_total : null;
+        const netboxHint = document.getElementById('netbox-count-hint');
+        if (netboxHint && netboxTotal != null) {
+            netboxHint.textContent = `(${netboxTotal} devices)`;
+        }
+
+        // OpenStack aggregates — count unique aggregates across all GPU types
+        let aggregateCount = 0;
+        gpuTypes.forEach(gpu => {
+            const cfg = parallelData[gpu]?.config;
+            if (cfg) {
+                // Count ondemand + variant + spot + runpod + contract aggregates
+                aggregateCount += (cfg.ondemand_variants || []).length;
+                if (cfg.spot) aggregateCount++;
+                if (cfg.runpod) aggregateCount++;
+                aggregateCount += (cfg.contracts || []).length;
+            }
+        });
+        const aggHint = document.getElementById('aggregates-count-hint');
+        if (aggHint && aggregateCount > 0) {
+            aggHint.textContent = `(${aggregateCount} aggregates)`;
+        }
+
+        // VM counts — count hosts with VMs and total VMs
+        let totalHosts = 0;
+        let hostsWithVms = 0;
+        let totalVms = 0;
+        gpuTypes.forEach(gpu => {
+            const hosts = parallelData[gpu]?.hosts;
+            if (Array.isArray(hosts)) {
+                totalHosts += hosts.length;
+                hosts.forEach(h => {
+                    const vmCount = h.vm_count || 0;
+                    if (vmCount > 0) {
+                        hostsWithVms++;
+                        totalVms += vmCount;
+                    }
+                });
+            }
+        });
+        const vmsHint = document.getElementById('vms-count-hint');
+        if (vmsHint && totalHosts > 0) {
+            vmsHint.textContent = `(${totalVms} VMs on ${hostsWithVms}/${totalHosts} hosts)`;
+        }
+
+        // GPU usage — sum gpu_used / gpu_capacity across pools
+        let totalGpuUsed = 0;
+        let totalGpuCapacity = 0;
+        gpuTypes.forEach(gpu => {
+            const data = parallelData[gpu];
+            ['ondemand', 'runpod', 'spot', 'contract', 'outofstock'].forEach(pool => {
+                const summary = data?.[pool]?.gpu_summary;
+                if (summary) {
+                    totalGpuUsed += summary.gpu_used || 0;
+                    totalGpuCapacity += summary.gpu_capacity || 0;
+                }
+            });
+        });
+        const gpusHint = document.getElementById('gpus-count-hint');
+        if (gpusHint && totalGpuCapacity > 0) {
+            gpusHint.textContent = `(${totalGpuUsed}/${totalGpuCapacity} GPUs in use)`;
+        }
+
+        // Organizing — show GPU type count
+        const orgStep = document.getElementById('step-organizing');
+        if (orgStep) {
+            const span = orgStep.querySelector('.flex-grow-1');
+            if (span) {
+                span.innerHTML = `Organizing data by GPU types... <small class="text-muted">(${gpuTypes.length} types)</small>`;
+            }
+        }
+
+        console.log(`📊 Progress counts updated: ${netboxTotal || '?'} devices, ${aggregateCount} aggregates, ${totalVms} VMs, ${totalGpuUsed}/${totalGpuCapacity} GPUs, ${gpuTypes.length} GPU types`);
+    } catch (e) {
+        console.log('Could not update progress counts:', e.message);
+    }
+}
+
+// Make updateProgressCountsFromData globally available for loadGpuTypes
+window.updateProgressCountsFromData = updateProgressCountsFromData;
+
 function simulateInitialLoadingProgress() {
     console.log('🚀 Starting initial loading progress simulation...');
     
@@ -1584,80 +1689,18 @@ function refreshDataWithProgress(selectedType) {
         }
     }, 1000);
     
-    // Only show cached estimates if we've completed at least one successful refresh
-    // This prevents showing stale or incorrect data on first load
-    const hasCompletedRefresh = window.hasCompletedSuccessfulRefresh || false;
-    const hasCachedData = hasCompletedRefresh && window.gpuDataCache && window.gpuDataCache.size > 0;
-    
-    console.log('📊 Cache status for progress messages:', {
-        hasCompletedRefresh: hasCompletedRefresh,
-        gpuDataCacheExists: !!window.gpuDataCache,
-        cacheSize: window.gpuDataCache ? window.gpuDataCache.size : 0,
-        willShowEstimates: hasCachedData
-    });
-    
-    let deviceCount = '';
-    let aggregateCount = '';
-    let hostCount = '';
-    
-    if (hasCachedData) {
-        // Try to get counts from cache for estimates
-        try {
-            const sampleData = Array.from(window.gpuDataCache.values())[0];
-            if (sampleData && sampleData.parallel_data) {
-                const parallelData = sampleData.parallel_data;
-                if (parallelData.netbox_cache && parallelData.netbox_cache.tenant_cache_size) {
-                    deviceCount = ` (~${parallelData.netbox_cache.tenant_cache_size} devices)`;
-                    // Update HTML count hint
-                    const netboxHint = document.getElementById('netbox-count-hint');
-                    if (netboxHint) {
-                        netboxHint.textContent = `(~${parallelData.netbox_cache.tenant_cache_size} devices)`;
-                    }
-                }
-                if (parallelData.host_aggregate_cache && parallelData.host_aggregate_cache.host_aggregate_cache_size) {
-                    aggregateCount = ` (~${parallelData.host_aggregate_cache.host_aggregate_cache_size} aggregates)`;
-                    // Update HTML count hint
-                    const aggregatesHint = document.getElementById('aggregates-count-hint');
-                    if (aggregatesHint) {
-                        aggregatesHint.textContent = `(~${parallelData.host_aggregate_cache.host_aggregate_cache_size} aggregates)`;
-                    }
-                }
-                // Estimate host count from cached data
-                let totalHosts = 0;
-                window.gpuDataCache.forEach(data => {
-                    if (data.data) {
-                        ['runpod', 'spot', 'ondemand'].forEach(type => {
-                            if (data.data[type] && data.data[type].hosts) {
-                                totalHosts += data.data[type].hosts.length;
-                            }
-                        });
-                    }
-                });
-                if (totalHosts > 0) {
-                    hostCount = ` (~${totalHosts} hosts)`;
-                    // Update HTML count hints for both VM and GPU steps
-                    const vmsHint = document.getElementById('vms-count-hint');
-                    if (vmsHint) {
-                        vmsHint.textContent = `(~${totalHosts} hosts)`;
-                    }
-                    const gpusHint = document.getElementById('gpus-count-hint');
-                    if (gpusHint) {
-                        gpusHint.textContent = `(~${totalHosts} hosts)`;
-                    }
-                }
-            }
-        } catch (e) {
-            console.log('Could not extract cache counts for progress estimates');
-        }
+    // Show estimates from cached parallel data (if available from previous load)
+    if (window.loadedParallelData) {
+        updateProgressCountsFromData(window.loadedParallelData);
     }
-    
+
     // Progress simulation based on typical timing
     const progressSteps = [
         {stage: 'clearing', message: 'Clearing caches...', progress: 10, delay: 500},
-        {stage: 'netbox', message: `Fetching NetBox devices${deviceCount}...`, progress: 30, delay: 2000},
-        {stage: 'openstack', message: `Scanning OpenStack aggregates${aggregateCount}...`, progress: 45, delay: 6000},
-        {stage: 'vms', message: `Collecting VM counts${hostCount}...`, progress: 65, delay: 9000},
-        {stage: 'gpus', message: `Gathering GPU usage information${hostCount}...`, progress: 85, delay: 13000},
+        {stage: 'netbox', message: 'Fetching NetBox devices...', progress: 30, delay: 2000},
+        {stage: 'openstack', message: 'Scanning OpenStack aggregates...', progress: 45, delay: 6000},
+        {stage: 'vms', message: 'Collecting VM counts...', progress: 65, delay: 9000},
+        {stage: 'gpus', message: 'Gathering GPU usage information...', progress: 85, delay: 13000},
         {stage: 'organizing', message: 'Organizing data by GPU types...', progress: 95, delay: 15000}
     ];
     
