@@ -825,23 +825,31 @@ def organize_by_netbox_devices(results):
     for gpu_type, column_data in gpu_columns.items():
         organized[gpu_type] = finalize_gpu_column_with_pools(column_data)
 
-    # Post-process: ensure OpenStack aggregates appear as ondemand variants even if
-    # they have no active NetBox hosts (e.g. empty Lifeboat/Drain aggregates)
+    # Post-process: ensure OpenStack aggregates with configured split suffixes
+    # appear as ondemand variants even if they have no active NetBox hosts
     import re
+    from .variant_settings import get_split_suffixes
+    split_suffixes = get_split_suffixes()
     for agg_name in aggregate_to_hosts.keys():
-        # Match GPU-TYPE-n3[-suffix] pattern for ondemand-like aggregates
-        agg_match = re.match(r'^([A-Z0-9-]+)-n3(-NVLink)?(-Drain|-Lifeboat)?$', agg_name, re.IGNORECASE)
-        if agg_match and agg_match.group(3):  # Only care about special suffixes
-            gpu_type = agg_match.group(1)
-            if gpu_type in organized:
-                config = organized[gpu_type].get('config', {})
-                existing_variants = {v['aggregate'] for v in config.get('ondemand_variants', [])}
-                if agg_name not in existing_variants:
-                    config.setdefault('ondemand_variants', []).append({
-                        'aggregate': agg_name,
-                        'variant': agg_name
-                    })
-                    print(f"📌 Added empty aggregate '{agg_name}' to {gpu_type} ondemand variants")
+        agg_match = re.match(r'^([A-Z0-9-]+)-n3(.+)$', agg_name, re.IGNORECASE)
+        if agg_match:
+            suffix_part = agg_match.group(2)
+            # Skip pool-type aggregates
+            if '-spot' in suffix_part.lower() or '-runpod' in suffix_part.lower():
+                continue
+            # Check if suffix contains any configured split suffix
+            has_split_suffix = any(s.lower() in suffix_part.lower() for s in split_suffixes)
+            if has_split_suffix:
+                gpu_type = agg_match.group(1)
+                if gpu_type in organized:
+                    config = organized[gpu_type].get('config', {})
+                    existing_variants = {v['aggregate'] for v in config.get('ondemand_variants', [])}
+                    if agg_name not in existing_variants:
+                        config.setdefault('ondemand_variants', []).append({
+                            'aggregate': agg_name,
+                            'variant': agg_name
+                        })
+                        print(f"📌 Added empty aggregate '{agg_name}' to {gpu_type} ondemand variants")
 
     # Debug: Show out-of-stock devices per GPU type
     for gpu_type, column_data in gpu_columns.items():
@@ -1414,14 +1422,13 @@ def classify_aggregates_by_gpu_type(aggregates_dict):
     gpu_aggregates = {}
     
     for agg_name, agg_obj in aggregates_dict.items():
-        # Pattern 1: Regular GPU aggregates: GPU-TYPE-n3[-suffix]
-        # Supports: -NVLink, -spot, -runpod, -Drain, -Lifeboat suffixes
-        match = re.match(r'^([A-Z0-9-]+)-n3(-NVLink)?(-spot|-runpod|-Drain|-Lifeboat)?$', agg_name)
+        # Pattern 1: Regular GPU aggregates: GPU-TYPE-n3[-any-suffix]
+        # Accepts any suffix after -n3, classifies by -spot/-runpod as pool types
+        match = re.match(r'^([A-Z0-9-]+)-n3(.*)$', agg_name, re.IGNORECASE)
         if match:
             gpu_type = match.group(1)
-            nvlink_suffix = match.group(2)
-            pool_suffix = match.group(3)
-            
+            suffix = match.group(2)
+
             if gpu_type not in gpu_aggregates:
                 gpu_aggregates[gpu_type] = {
                     'ondemand_variants': [],
@@ -1429,14 +1436,14 @@ def classify_aggregates_by_gpu_type(aggregates_dict):
                     'runpod': None,
                     'contracts': []
                 }
-            
-            if pool_suffix == '-spot':
+
+            suffix_lower = suffix.lower()
+            if '-spot' in suffix_lower:
                 gpu_aggregates[gpu_type]['spot'] = agg_name
-            elif pool_suffix == '-runpod':
+            elif '-runpod' in suffix_lower:
                 gpu_aggregates[gpu_type]['runpod'] = agg_name
             else:
-                # On-demand variant (including -Drain, -Lifeboat and other custom suffixes)
-                # Use the full aggregate name as the variant to preserve suffixes
+                # On-demand variant (base, NVLink, Drain, Lifeboat, or any future suffix)
                 gpu_aggregates[gpu_type]['ondemand_variants'].append({
                     'aggregate': agg_name,
                     'variant': agg_name

@@ -14,6 +14,38 @@ let currentNetboxBranch = null;  // null = Main (Production)
 let availableBranches = [];
 let branchingAvailable = false;
 
+// Variant column settings (loaded from API, fallback to defaults)
+let _variantColumnSettings = null;
+
+async function loadVariantColumnSettings() {
+    try {
+        const response = await fetch('/api/settings/variant-columns');
+        if (response.ok) {
+            const data = await response.json();
+            _variantColumnSettings = data.settings;
+            console.log('✅ Loaded variant column settings:', _variantColumnSettings);
+        }
+    } catch (error) {
+        console.error('⚠️ Failed to load variant column settings:', error);
+    }
+}
+
+function getSplitSuffixes() {
+    if (_variantColumnSettings && _variantColumnSettings.split_suffixes) {
+        return _variantColumnSettings.split_suffixes.map(s => s.toLowerCase());
+    }
+    return ['nvlink', 'drain', 'lifeboat'];
+}
+
+function checkHasSplitVariants(variants) {
+    if (!variants || variants.length <= 1) return false;
+    const suffixes = getSplitSuffixes();
+    return variants.some(v => {
+        const vLower = v.variant.toLowerCase();
+        return suffixes.some(suffix => vLower.includes(suffix));
+    });
+}
+
 // EXACT ORIGINAL renderAggregateData function
 function renderAggregateData(data) {
     console.log('🔥 renderAggregateData called for GPU type:', data.gpu_type);
@@ -1448,13 +1480,8 @@ function renderOnDemandVariantColumns(ondemandData) {
         })) : []
     });
 
-    // Check for variants that should be split into separate columns (NVLink, Drain, or Lifeboat)
-    const hasSplitVariants = ondemandData.variants && ondemandData.variants.length > 1 &&
-        ondemandData.variants.some(v =>
-            v.variant.toLowerCase().includes('nvlink') ||
-            v.variant.toLowerCase().includes('drain') ||
-            v.variant.toLowerCase().includes('lifeboat')
-        );
+    // Check for variants that should be split into separate columns (driven by settings)
+    const hasSplitVariants = checkHasSplitVariants(ondemandData.variants);
 
     console.log('🔍 hasSplitVariants result:', hasSplitVariants);
 
@@ -2525,7 +2552,9 @@ window.Frontend = {
     updatePendingOperationsDisplay,
     updateCardPendingIndicators,
     refreshAffectedColumns,
-    createHostCardCompact
+    createHostCardCompact,
+    loadVariantColumnSettings,
+    getSplitSuffixes
 };
 
 

@@ -63,35 +63,3 @@ def log_command(command, result, execution_type='executed'):
     # Keep only last 100 entries
     if len(command_log) > 100:
         command_log = command_log[-100:]
-
-# Define aggregate pairs - multiple on-demand variants share one spot aggregate
-AGGREGATE_PAIRS = {
-    'L40': {
-        'spot': 'L40-n3-spot',
-        'ondemand_variants': [
-            {'aggregate': 'L40-n3', 'variant': 'L40-n3'}
-        ]
-    },
-    'RTX-A6000': {
-        'spot': 'RTX-A6000-n3-spot',
-        'ondemand_variants': [
-            {'aggregate': 'RTX-A6000-n3', 'variant': 'RTX-A6000-n3'},
-            {'aggregate': 'RTX-A6000-n3-Drain', 'variant': 'RTX-A6000-n3-Drain'},
-            {'aggregate': 'RTX-A6000-n3-Lifeboat', 'variant': 'RTX-A6000-n3-Lifeboat'}
-        ]
-    },
-    'A100': {
-        'spot': 'A100-n3-spot',
-        'ondemand_variants': [
-            {'aggregate': 'A100-n3', 'variant': 'A100-n3'},
-            {'aggregate': 'A100-n3-NVLink', 'variant': 'A100-n3-NVLink'}
-        ]
-    },
-    'H100': {
-        'spot': 'H100-n3-spot',
-        'ondemand_variants': [
-            {'aggregate': 'H100-n3', 'variant': 'H100-n3'},
-            {'aggregate': 'H100-n3-NVLink', 'variant': 'H100-n3-NVLink'}
-        ]
-    }
-}

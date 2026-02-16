@@ -43,34 +43,31 @@ def discover_gpu_aggregates(force_refresh=False):
         import re
         
         for agg in aggregates:
-            # Pattern 1: Regular GPU aggregates: GPU-TYPE-n3[-suffix]
-            # Supports: -NVLink, -spot, -runpod, -Drain, -Lifeboat suffixes
-            match = re.match(r'^([A-Z0-9-]+)-n3(-NVLink)?(-spot|-runpod|-Drain|-Lifeboat)?$', agg.name, re.IGNORECASE)
+            # Pattern 1: Regular GPU aggregates: GPU-TYPE-n3[-any-suffix]
+            # Accepts any suffix after -n3, then classifies by -spot/-runpod as pool types
+            match = re.match(r'^([A-Z0-9-]+)-n3(.*)$', agg.name, re.IGNORECASE)
             if match:
                 gpu_type = match.group(1)
-                nvlink_suffix = match.group(2)  # -NVLink or None
-                pool_suffix = match.group(3)   # -spot, -runpod, or None
-                
+                suffix = match.group(2)  # everything after -n3 (e.g., "", "-NVLink", "-spot", "-Drain")
+
                 if gpu_type not in gpu_aggregates:
                     gpu_aggregates[gpu_type] = {
                         'ondemand_variants': [],
                         'spot': None,
                         'runpod': None,
-                        'contracts': []  # Add contracts support
+                        'contracts': []
                     }
-                
-                if pool_suffix == '-spot':
+
+                suffix_lower = suffix.lower()
+                if '-spot' in suffix_lower:
                     gpu_aggregates[gpu_type]['spot'] = agg.name
-                elif pool_suffix == '-runpod':
+                elif '-runpod' in suffix_lower:
                     gpu_aggregates[gpu_type]['runpod'] = agg.name
                 else:
-                    # On-demand variant (including -Drain and other custom suffixes)
-                    # Use the full aggregate name as the variant to preserve suffixes
-                    variant_display = agg.name
-
+                    # On-demand variant (base, NVLink, Drain, Lifeboat, or any future suffix)
                     gpu_aggregates[gpu_type]['ondemand_variants'].append({
                         'aggregate': agg.name,
-                        'variant': variant_display
+                        'variant': agg.name
                     })
             
             # Pattern 2: Contract aggregates: Contract-* or contract-*

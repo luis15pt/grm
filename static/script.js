@@ -233,12 +233,17 @@ document.addEventListener('DOMContentLoaded', function() {
     // Main content is now always visible (no d-none class in HTML)
     console.log('👁️ Main content and contract column are visible by default');
     
-    console.log('📊 Loading GPU types...');
-    
+    console.log('📊 Loading variant column settings and GPU types...');
+
+    // Load variant column settings (non-blocking, has fallback defaults)
+    if (window.Frontend && window.Frontend.loadVariantColumnSettings) {
+        window.Frontend.loadVariantColumnSettings();
+    }
+
     // Show progress modal for initial data loading
     showProgressModal();
     simulateInitialLoadingProgress();
-    
+
     window.OpenStack.loadGpuTypes();
     
     // Check URL parameters for auto-selection

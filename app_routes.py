@@ -48,6 +48,69 @@ def register_routes(app):
         """OpenAPI specification"""
         return send_from_directory('static', 'openapi.json')
 
+    @app.route('/api/settings/variant-columns')
+    def get_variant_column_settings():
+        """Get variant column settings and all discovered variants."""
+        from modules.variant_settings import get_variant_settings
+        import re
+
+        settings = get_variant_settings()
+
+        # Gather all discovered ondemand variant names from cached parallel data
+        all_variants = []
+        try:
+            parallel_data = get_all_data_parallel()
+            for gpu_type, gpu_data in parallel_data.items():
+                if gpu_type.startswith('_') or not isinstance(gpu_data, dict):
+                    continue
+                config = gpu_data.get('config', {})
+                for variant in config.get('ondemand_variants', []):
+                    all_variants.append({
+                        'gpu_type': gpu_type,
+                        'aggregate': variant['aggregate'],
+                        'variant': variant['variant']
+                    })
+        except Exception as e:
+            print(f"⚠️ Could not load discovered variants: {e}")
+
+        # Extract unique suffixes from discovered variants
+        discovered_suffixes = set()
+        for v in all_variants:
+            match = re.match(r'^[A-Z0-9-]+-n3-(.+)$', v['aggregate'], re.IGNORECASE)
+            if match:
+                suffix = match.group(1)
+                if suffix.lower() not in ('spot', 'runpod'):
+                    discovered_suffixes.add(suffix)
+
+        return jsonify({
+            'settings': settings,
+            'discovered_variants': all_variants,
+            'discovered_suffixes': sorted(discovered_suffixes)
+        })
+
+    @app.route('/api/settings/variant-columns', methods=['POST'])
+    def save_variant_column_settings():
+        """Save variant column settings."""
+        from modules.variant_settings import save_variant_settings
+        from modules.parallel_agents import clear_parallel_cache
+
+        data = request.json
+        split_suffixes = data.get('split_suffixes', [])
+
+        if not isinstance(split_suffixes, list) or not all(isinstance(s, str) for s in split_suffixes):
+            return jsonify({'error': 'split_suffixes must be a list of strings'}), 400
+
+        settings = save_variant_settings(split_suffixes)
+
+        # Clear parallel cache to force re-classification with new settings
+        clear_parallel_cache()
+        print(f"✅ Variant column settings saved: {split_suffixes}")
+
+        return jsonify({
+            'success': True,
+            'settings': settings
+        })
+
     @app.route('/api/gpu-types')
     def get_gpu_types():
         """Get available GPU types from parallel agents data - OPTIMIZED"""

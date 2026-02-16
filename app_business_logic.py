@@ -42,39 +42,6 @@ HYPERSTACK_API_KEY = os.getenv('HYPERSTACK_API_KEY')
 RUNPOD_API_KEY = os.getenv('RUNPOD_API_KEY')
 HYPERSTACK_FIREWALL_CA1_ID = os.getenv('HYPERSTACK_FIREWALL_CA1_ID', '971')  # Firewall ID for CA1 hosts
 
-# Define aggregate pairs - multiple on-demand variants share one spot aggregate
-AGGREGATE_PAIRS = {
-    'L40': {
-        'spot': 'L40-n3-spot',
-        'ondemand_variants': [
-            {'aggregate': 'L40-n3', 'variant': 'L40-n3'}
-        ]
-    },
-    'RTX-A6000': {
-        'spot': 'RTX-A6000-n3-spot',
-        'ondemand_variants': [
-            {'aggregate': 'RTX-A6000-n3', 'variant': 'RTX-A6000-n3'},
-            {'aggregate': 'RTX-A6000-n3-Drain', 'variant': 'RTX-A6000-n3-Drain'},
-            {'aggregate': 'RTX-A6000-n3-Lifeboat', 'variant': 'RTX-A6000-n3-Lifeboat'}
-        ]
-    },
-    'A100': {
-        'spot': 'A100-n3-spot',
-        'ondemand_variants': [
-            {'aggregate': 'A100-n3', 'variant': 'A100-n3'},
-            {'aggregate': 'A100-n3-NVLink', 'variant': 'A100-n3-NVLink'},
-            {'aggregate': 'A100-n3-Drain', 'variant': 'A100-n3-Drain'}
-        ]
-    },
-    'H100': {
-        'spot': 'H100-n3-spot',
-        'ondemand_variants': [
-            {'aggregate': 'H100-n3', 'variant': 'H100-n3'},
-            {'aggregate': 'H100-n3-NVLink', 'variant': 'H100-n3-NVLink'}
-        ]
-    }
-}
-
 def get_openstack_connection():
     """Get or create OpenStack connection"""
     global _openstack_connection
