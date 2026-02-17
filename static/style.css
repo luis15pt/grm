@@ -3830,3 +3830,974 @@ body {
     }
 }
 
+/* =============================================================================
+   DARK THEME
+   ============================================================================= */
+
+/* Transition for smooth theme switching */
+[data-theme] body,
+[data-theme] .card,
+[data-theme] .modal-content,
+[data-theme] .dropdown-menu,
+[data-theme] .nav-tabs .nav-link,
+[data-theme] .tab-content,
+[data-theme] .form-control,
+[data-theme] .form-select {
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+[data-theme="dark"] body {
+    background-color: #1a1d21;
+    color: #e1e4e8;
+}
+
+/* Page title and subtitle */
+[data-theme="dark"] h1.text-center {
+    color: #e1e4e8;
+}
+
+[data-theme="dark"] .text-muted {
+    color: #8b949e !important;
+}
+
+/* GPU Type Summary Card */
+[data-theme="dark"] .card.bg-light {
+    background-color: #21262d !important;
+    border-color: #30363d;
+}
+
+[data-theme="dark"] .card.bg-light .text-muted {
+    color: #8b949e !important;
+}
+
+/* Tab navigation */
+[data-theme="dark"] .nav-tabs {
+    border-bottom-color: #30363d;
+}
+
+[data-theme="dark"] .nav-tabs .nav-link {
+    color: #8b949e;
+}
+
+[data-theme="dark"] .nav-tabs .nav-link:hover {
+    color: #58a6ff;
+    background-color: #21262d;
+}
+
+[data-theme="dark"] .nav-tabs .nav-link.active {
+    color: #58a6ff;
+    background-color: #0d1117;
+    border-bottom-color: #58a6ff;
+}
+
+[data-theme="dark"] .tab-content {
+    background: #0d1117;
+}
+
+/* Cards */
+[data-theme="dark"] .card {
+    background-color: #161b22;
+    border-color: #30363d;
+}
+
+[data-theme="dark"] .card-body {
+    background-color: #161b22;
+}
+
+/* Drop zones */
+[data-theme="dark"] .drop-zone {
+    border-color: #30363d;
+    background-color: #0d1117;
+}
+
+[data-theme="dark"] .card-body.drop-zone {
+    background-color: #0d1117;
+}
+
+/* Host groups */
+[data-theme="dark"] .host-group {
+    border-color: #30363d;
+    background: #161b22;
+}
+
+[data-theme="dark"] .host-group-header {
+    background: #21262d;
+    border-bottom-color: #30363d;
+}
+
+[data-theme="dark"] .host-group-header:hover {
+    background: #282e36;
+}
+
+[data-theme="dark"] .host-group-header h6 {
+    color: #c9d1d9;
+}
+
+[data-theme="dark"] .host-group-content {
+    background: #161b22;
+}
+
+/* Host sub-groups */
+[data-theme="dark"] .host-subgroup {
+    border-color: #30363d;
+    background: #0d1117;
+}
+
+[data-theme="dark"] .host-subgroup-header {
+    background: #21262d;
+    border-bottom-color: #30363d;
+}
+
+[data-theme="dark"] .host-subgroup-header:hover {
+    background: #282e36;
+}
+
+[data-theme="dark"] .subgroup-title {
+    color: #c9d1d9;
+}
+
+[data-theme="dark"] .host-subgroup.priority-high {
+    border-color: #0dcaf0;
+    background: #0d1117;
+}
+
+[data-theme="dark"] .host-subgroup.priority-medium {
+    border-color: #ffc107;
+    background: #0d1117;
+}
+
+[data-theme="dark"] .host-subgroup.priority-low {
+    border-color: #6c757d;
+    background: #0d1117;
+}
+
+[data-theme="dark"] .host-subgroup.priority-high .host-subgroup-header {
+    background: rgba(13, 202, 240, 0.1);
+}
+
+[data-theme="dark"] .host-subgroup.priority-medium .host-subgroup-header {
+    background: rgba(255, 193, 7, 0.1);
+}
+
+/* Owner group backgrounds */
+[data-theme="dark"] .nexgen-group .host-subgroup-header {
+    background-color: rgba(33, 150, 243, 0.1);
+}
+
+[data-theme="dark"] .investors-group .host-subgroup-header {
+    background-color: rgba(255, 152, 0, 0.1);
+}
+
+/* Compact machine cards */
+[data-theme="dark"] .machine-card-compact {
+    background: #21262d;
+    border-color: #30363d;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .machine-card-compact:hover {
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+    border-color: #58a6ff;
+}
+
+[data-theme="dark"] .machine-name-compact {
+    color: #c9d1d9;
+}
+
+[data-theme="dark"] .gpu-badge-compact {
+    background: #30363d;
+    border-color: #484f58;
+    color: #c9d1d9;
+}
+
+[data-theme="dark"] .owner-badge-compact.nexgen {
+    background: rgba(33, 150, 243, 0.2);
+    color: #58a6ff;
+}
+
+[data-theme="dark"] .owner-badge-compact.investors {
+    background: rgba(255, 152, 0, 0.2);
+    color: #ffa657;
+}
+
+/* Pending operation cards */
+[data-theme="dark"] .machine-card-compact.pending-operation {
+    background: repeating-linear-gradient(45deg, #21262d 25%, #2d2a1a 25%, #2d2a1a 50%, #21262d 50%, #21262d 75%, #2d2a1a 75%, #2d2a1a);
+    background-size: 6px 6px;
+}
+
+/* Modals */
+[data-theme="dark"] .modal-content {
+    background-color: #161b22;
+    border-color: #30363d;
+    color: #c9d1d9;
+}
+
+[data-theme="dark"] .modal-header {
+    background-color: #21262d;
+    border-bottom-color: #30363d;
+}
+
+[data-theme="dark"] .modal-header .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+[data-theme="dark"] .modal-footer {
+    border-top-color: #30363d;
+}
+
+[data-theme="dark"] .modal-title {
+    color: #e1e4e8;
+}
+
+/* Form controls */
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .form-select {
+    background-color: #0d1117;
+    border-color: #30363d;
+    color: #c9d1d9;
+}
+
+[data-theme="dark"] .form-control:focus,
+[data-theme="dark"] .form-select:focus {
+    background-color: #161b22;
+    border-color: #58a6ff;
+    color: #c9d1d9;
+    box-shadow: 0 0 0 0.25rem rgba(88, 166, 255, 0.25);
+}
+
+[data-theme="dark"] .form-control::placeholder {
+    color: #484f58;
+}
+
+[data-theme="dark"] .form-check-input {
+    background-color: #0d1117;
+    border-color: #30363d;
+}
+
+[data-theme="dark"] .form-check-input:checked {
+    background-color: #58a6ff;
+    border-color: #58a6ff;
+}
+
+/* Dropdown menus */
+[data-theme="dark"] .dropdown-menu {
+    background-color: #161b22;
+    border-color: #30363d;
+}
+
+[data-theme="dark"] .dropdown-item {
+    color: #c9d1d9;
+}
+
+[data-theme="dark"] .dropdown-item:hover,
+[data-theme="dark"] .dropdown-item:focus {
+    background-color: #21262d;
+    color: #e1e4e8;
+}
+
+[data-theme="dark"] .dropdown-divider {
+    border-top-color: #30363d;
+}
+
+/* Alerts */
+[data-theme="dark"] .alert-warning {
+    background-color: rgba(255, 193, 7, 0.15);
+    border-color: rgba(255, 193, 7, 0.3);
+    color: #ffc107;
+}
+
+[data-theme="dark"] .alert-info {
+    background-color: rgba(13, 202, 240, 0.15);
+    border-color: rgba(13, 202, 240, 0.3);
+    color: #0dcaf0;
+}
+
+/* Badges - keep most as-is but fix text-dark on bg-light */
+[data-theme="dark"] .badge.bg-light {
+    background-color: #30363d !important;
+    color: #c9d1d9 !important;
+}
+
+[data-theme="dark"] .badge.bg-light.text-dark {
+    color: #c9d1d9 !important;
+}
+
+/* Command operations */
+[data-theme="dark"] .command-operation {
+    background: #161b22;
+    border-color: #30363d;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .command-operation:hover {
+    background: #21262d;
+    border-color: #484f58;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .command-operation.completed-step {
+    background: rgba(40, 167, 69, 0.1);
+    border-color: #28a745;
+}
+
+[data-theme="dark"] .command-operation.in-progress-step {
+    background: rgba(255, 193, 7, 0.1) !important;
+    border-color: #ffc107 !important;
+}
+
+[data-theme="dark"] .command-operation.failed-step {
+    background: rgba(220, 53, 69, 0.1) !important;
+    border-color: #dc3545 !important;
+}
+
+[data-theme="dark"] .command-title {
+    color: #c9d1d9;
+}
+
+[data-theme="dark"] .command-details {
+    background: #0d1117;
+    border-color: #30363d;
+}
+
+[data-theme="dark"] .command-to-execute code {
+    background: #0d1117 !important;
+    border-color: #30363d;
+    color: #c9d1d9;
+}
+
+[data-theme="dark"] .command-collapse-btn {
+    border-color: #30363d;
+    background: #21262d;
+    color: #c9d1d9;
+}
+
+[data-theme="dark"] .command-collapse-btn:hover {
+    background: #30363d;
+    border-color: #58a6ff;
+    color: #58a6ff;
+}
+
+/* Command log entries */
+[data-theme="dark"] .command-log-entry {
+    background: #161b22;
+    border-color: #30363d;
+}
+
+[data-theme="dark"] .command-log-entry.success {
+    background-color: rgba(40, 167, 69, 0.1);
+}
+
+[data-theme="dark"] .command-log-entry.error {
+    background-color: rgba(220, 53, 69, 0.1);
+}
+
+[data-theme="dark"] .command-log-entry.preview {
+    background-color: rgba(13, 110, 253, 0.1);
+}
+
+[data-theme="dark"] .command-log-entry.timeout {
+    background-color: rgba(255, 193, 7, 0.1);
+}
+
+[data-theme="dark"] .command-log-entry.queued {
+    background-color: #161b22;
+}
+
+[data-theme="dark"] .command-text {
+    background-color: #21262d;
+    border-color: #30363d;
+    color: #c9d1d9;
+}
+
+/* Stat cards */
+[data-theme="dark"] .stat-card {
+    background: #161b22;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .stat-card:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .stat-label {
+    color: #8b949e;
+}
+
+/* Result items */
+[data-theme="dark"] .result-item {
+    background: #161b22;
+    border-color: #30363d;
+}
+
+/* Pending operations */
+[data-theme="dark"] .pending-operation-item {
+    background: #161b22;
+    border-color: #30363d;
+}
+
+[data-theme="dark"] .pending-operation-item:hover {
+    background: #21262d;
+    border-color: #484f58;
+}
+
+[data-theme="dark"] .operation-details strong {
+    color: #c9d1d9;
+}
+
+[data-theme="dark"] .pending-operation-card {
+    border-color: #30363d;
+}
+
+[data-theme="dark"] .pending-operation-card .card-header {
+    background: #21262d;
+    border-bottom-color: #30363d;
+}
+
+[data-theme="dark"] .pending-operation-card .card-header h6 {
+    color: #c9d1d9;
+}
+
+[data-theme="dark"] .operation-step {
+    border-color: #30363d;
+    background: #0d1117;
+}
+
+[data-theme="dark"] .operation-step:hover {
+    background: #161b22;
+    border-color: #484f58;
+}
+
+[data-theme="dark"] .step-title {
+    color: #c9d1d9;
+}
+
+[data-theme="dark"] .step-command code {
+    color: #c9d1d9;
+    background: #21262d;
+    border-color: #30363d;
+}
+
+[data-theme="dark"] .operation-commands {
+    background-color: #0d1117;
+}
+
+[data-theme="dark"] .operation-meta {
+    border-top-color: #30363d;
+}
+
+/* Operation step states in dark mode */
+[data-theme="dark"] .operation-step:has(.operation-step-checkbox:checked) {
+    border-color: #58a6ff;
+    background: rgba(88, 166, 255, 0.05);
+}
+
+[data-theme="dark"] .operation-step:has(.operation-step-checkbox:not(:checked)) {
+    border-color: #30363d;
+    background: #0d1117;
+}
+
+[data-theme="dark"] .in-progress-step {
+    background: rgba(255, 193, 7, 0.1) !important;
+}
+
+[data-theme="dark"] .completed-step {
+    background: rgba(40, 167, 69, 0.1) !important;
+}
+
+/* Debug area */
+[data-theme="dark"] #debugLogContainer {
+    background: #0d1117;
+    border-color: #30363d;
+}
+
+[data-theme="dark"] .debug-log {
+    background: #0d1117;
+    border-color: #30363d;
+}
+
+[data-theme="dark"] .debug-entry {
+    color: #c9d1d9;
+}
+
+[data-theme="dark"] .debug-entry:hover {
+    border-color: #30363d;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Light bg variants for debug */
+[data-theme="dark"] .bg-light-success {
+    background-color: rgba(40, 167, 69, 0.1) !important;
+}
+
+[data-theme="dark"] .bg-light-danger {
+    background-color: rgba(220, 53, 69, 0.1) !important;
+}
+
+[data-theme="dark"] .bg-light-warning {
+    background-color: rgba(255, 193, 7, 0.1) !important;
+}
+
+[data-theme="dark"] .bg-light-info {
+    background-color: rgba(23, 162, 184, 0.1) !important;
+}
+
+/* System info */
+[data-theme="dark"] .system-info-item {
+    border-bottom-color: #30363d;
+}
+
+[data-theme="dark"] .system-info-item strong {
+    color: #8b949e;
+}
+
+/* Variant sections */
+[data-theme="dark"] .variant-section {
+    border-color: #30363d;
+    background: #161b22;
+}
+
+[data-theme="dark"] .variant-header {
+    background: #21262d;
+    border-bottom-color: #30363d;
+}
+
+[data-theme="dark"] .variant-header h6 {
+    color: #c9d1d9;
+}
+
+/* Image selection */
+[data-theme="dark"] .image-selection-container {
+    border-color: #30363d;
+    background-color: #0d1117;
+}
+
+[data-theme="dark"] .image-card {
+    border-color: #30363d;
+    background-color: #161b22;
+}
+
+[data-theme="dark"] .image-card:hover {
+    border-color: #58a6ff;
+}
+
+[data-theme="dark"] .image-card.selected {
+    border-color: #28a745;
+    background-color: rgba(40, 167, 69, 0.1);
+}
+
+[data-theme="dark"] .image-info .image-name {
+    color: #c9d1d9;
+}
+
+[data-theme="dark"] .image-details {
+    color: #8b949e;
+}
+
+[data-theme="dark"] .image-details strong {
+    color: #c9d1d9;
+}
+
+/* Customer view */
+[data-theme="dark"] #customerViewContainer {
+    background-color: #0d1117;
+}
+
+[data-theme="dark"] .customer-gpu-group {
+    background: #161b22;
+    border-color: #30363d;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .customer-device-card {
+    background: #21262d;
+    border-color: #30363d;
+}
+
+[data-theme="dark"] .customer-device-card:hover {
+    background: #282e36;
+    border-color: #58a6ff;
+}
+
+[data-theme="dark"] .customer-device-card.selected {
+    background: rgba(88, 166, 255, 0.1);
+    border-color: #58a6ff;
+}
+
+[data-theme="dark"] .customer-device-header {
+    color: #c9d1d9;
+}
+
+[data-theme="dark"] .customer-vm-item {
+    background: #0d1117;
+    border-color: #30363d;
+}
+
+[data-theme="dark"] .customer-vm-name {
+    color: #c9d1d9;
+}
+
+[data-theme="dark"] .customer-device-vm-list {
+    border-top-color: #30363d;
+}
+
+/* Out of stock column */
+[data-theme="dark"] .out-of-stock-breakdown {
+    background-color: rgba(220, 53, 69, 0.05);
+}
+
+[data-theme="dark"] .out-of-stock-group {
+    border-color: #30363d;
+    background-color: #161b22;
+}
+
+[data-theme="dark"] .out-of-stock-group .group-header {
+    border-bottom-color: #30363d;
+}
+
+/* Host cards (out of stock) */
+[data-theme="dark"] .host-card {
+    border-color: #30363d;
+    background-color: #21262d;
+}
+
+[data-theme="dark"] .host-card:hover {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .host-card .host-name {
+    color: #c9d1d9;
+}
+
+[data-theme="dark"] .host-card .host-details {
+    color: #8b949e;
+}
+
+[data-theme="dark"] .host-card .status-label {
+    background-color: rgba(108, 117, 125, 0.2);
+    color: #8b949e;
+}
+
+[data-theme="dark"] .host-card .gpu-info {
+    color: #8b949e;
+}
+
+[data-theme="dark"] .host-card.host-failed {
+    background-color: rgba(220, 53, 69, 0.05);
+}
+
+[data-theme="dark"] .host-card.host-offline {
+    background-color: rgba(255, 193, 7, 0.05);
+}
+
+[data-theme="dark"] .host-card.host-disabled {
+    background-color: rgba(108, 117, 125, 0.05);
+}
+
+[data-theme="dark"] .host-card.host-testing {
+    background-color: rgba(23, 162, 184, 0.05);
+}
+
+[data-theme="dark"] .host-card.host-unallocated {
+    background-color: rgba(253, 126, 20, 0.05);
+}
+
+[data-theme="dark"] .host-card.host-unknown {
+    background-color: rgba(111, 66, 193, 0.05);
+}
+
+/* Machine card header area */
+[data-theme="dark"] .machine-name {
+    color: #c9d1d9;
+}
+
+[data-theme="dark"] .host-name {
+    color: #c9d1d9;
+}
+
+/* VM instances modal */
+[data-theme="dark"] .vm-instances-modal {
+    background: #161b22;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .vm-instances-modal-header {
+    background: #21262d;
+    border-bottom-color: #30363d;
+}
+
+[data-theme="dark"] .vm-instances-modal-header h3 {
+    color: #c9d1d9;
+}
+
+[data-theme="dark"] .vm-modal-close {
+    color: #8b949e;
+}
+
+[data-theme="dark"] .vm-modal-close:hover {
+    background: #30363d;
+    color: #c9d1d9;
+}
+
+[data-theme="dark"] .vm-instance-item {
+    border-color: #30363d;
+    background: #21262d;
+}
+
+[data-theme="dark"] .vm-instance-item:hover {
+    border-color: #0dcaf0;
+    background: #161b22;
+}
+
+[data-theme="dark"] .vm-name {
+    color: #c9d1d9;
+}
+
+[data-theme="dark"] .vm-detail label {
+    color: #8b949e;
+}
+
+[data-theme="dark"] .vm-detail span {
+    color: #c9d1d9;
+}
+
+[data-theme="dark"] .vm-id {
+    background: #30363d;
+    color: #c9d1d9;
+}
+
+[data-theme="dark"] .vm-instances-summary {
+    border-bottom-color: #30363d;
+}
+
+/* Rack View */
+[data-theme="dark"] #rackViewContainer {
+    background: #0d1117;
+}
+
+[data-theme="dark"] #rackViewSummary {
+    background: #161b22;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .summary-card {
+    background: #21262d;
+}
+
+[data-theme="dark"] #rackFilters {
+    background: #161b22;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] #rackFilters .form-label {
+    color: #8b949e;
+}
+
+/* Tenant badges in dark mode */
+[data-theme="dark"] .tenant-badge.nexgen {
+    background-color: rgba(33, 150, 243, 0.2);
+    color: #58a6ff;
+    border-color: rgba(33, 150, 243, 0.3);
+}
+
+[data-theme="dark"] .tenant-badge.investors {
+    background-color: rgba(255, 152, 0, 0.2);
+    color: #ffa657;
+    border-color: rgba(255, 152, 0, 0.3);
+}
+
+/* NVLinks badge */
+[data-theme="dark"] .nvlinks-badge.enabled {
+    background-color: rgba(40, 167, 69, 0.15);
+    color: #3fb950;
+    border-color: rgba(40, 167, 69, 0.3);
+}
+
+[data-theme="dark"] .nvlinks-badge.disabled {
+    background-color: rgba(139, 148, 158, 0.1);
+    color: #8b949e;
+    border-color: #30363d;
+}
+
+[data-theme="dark"] .nvlinks-badge.unknown {
+    background-color: rgba(255, 193, 7, 0.15);
+    color: #ffc107;
+    border-color: rgba(255, 193, 7, 0.3);
+}
+
+/* Variant badge */
+[data-theme="dark"] .variant-badge {
+    background-color: rgba(88, 166, 255, 0.15);
+    color: #58a6ff;
+    border-color: rgba(88, 166, 255, 0.3);
+}
+
+/* Toast notifications */
+[data-theme="dark"] .toast {
+    background-color: #161b22;
+    border-color: #30363d;
+}
+
+[data-theme="dark"] .toast-header {
+    background-color: #21262d;
+    color: #c9d1d9;
+    border-bottom-color: #30363d;
+}
+
+[data-theme="dark"] .toast-body {
+    color: #c9d1d9;
+}
+
+/* Command preview */
+[data-theme="dark"] #commandPreview {
+    background-color: #0d1117 !important;
+    border-color: #30363d;
+    color: #c9d1d9;
+}
+
+/* Empty state */
+[data-theme="dark"] .empty-state {
+    color: #8b949e;
+}
+
+/* Loading indicator */
+[data-theme="dark"] #loadingIndicator p,
+[data-theme="dark"] #loadingIndicator small {
+    color: #c9d1d9;
+}
+
+/* Bootstrap bg-light override */
+[data-theme="dark"] .bg-light {
+    background-color: #21262d !important;
+}
+
+/* Scrollbar styling for dark mode */
+[data-theme="dark"] ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-track {
+    background: #0d1117;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+    background: #30363d;
+    border-radius: 4px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+    background: #484f58;
+}
+
+/* HR dividers */
+[data-theme="dark"] hr {
+    border-color: #30363d;
+}
+
+/* Vertical rule */
+[data-theme="dark"] .vr {
+    border-color: #30363d;
+    opacity: 0.5;
+}
+
+/* Bootstrap text colors that need adjustment */
+[data-theme="dark"] .text-dark {
+    color: #c9d1d9 !important;
+}
+
+/* Tables */
+[data-theme="dark"] .table {
+    color: #c9d1d9;
+    border-color: #30363d;
+}
+
+[data-theme="dark"] .table-striped > tbody > tr:nth-of-type(odd) {
+    color: #c9d1d9;
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* Progress modal / bg-white areas */
+[data-theme="dark"] .bg-white {
+    background-color: #161b22 !important;
+}
+
+/* Command purpose/description colored boxes */
+[data-theme="dark"] .command-purpose {
+    background: rgba(88, 166, 255, 0.1);
+}
+
+[data-theme="dark"] .command-description {
+    background: rgba(13, 202, 240, 0.1);
+}
+
+[data-theme="dark"] .command-to-execute {
+    background: rgba(139, 148, 158, 0.1);
+}
+
+[data-theme="dark"] .command-verification {
+    background: rgba(139, 148, 158, 0.1);
+}
+
+[data-theme="dark"] .command-expected {
+    background: rgba(40, 167, 69, 0.1);
+}
+
+[data-theme="dark"] .command-dependencies {
+    background: rgba(255, 193, 7, 0.1);
+}
+
+/* Pending operations special states */
+[data-theme="dark"] .pending-operation-item.countdown {
+    border-left-color: #ffc107;
+    background-color: rgba(255, 193, 7, 0.05);
+}
+
+[data-theme="dark"] .pending-operation-item.ready {
+    border-left-color: #28a745;
+    background-color: rgba(40, 167, 69, 0.05);
+}
+
+/* Region filter buttons */
+[data-theme="dark"] .region-filter-btn:hover:not(.active) {
+    background-color: rgba(88, 166, 255, 0.15);
+}
+
+/* Animations - update light flash colors */
+[data-theme="dark"] @keyframes commandUpdate {
+    0% { background-color: transparent; }
+    10% { background-color: rgba(88, 166, 255, 0.1); border-left: 3px solid #58a6ff; }
+    90% { background-color: rgba(88, 166, 255, 0.1); border-left: 3px solid #58a6ff; }
+    100% { background-color: transparent; border-left: none; }
+}
+
+/* Loading Manager / Progress Modal Styles */
+[data-theme="dark"] .modal-body {
+    color: #c9d1d9;
+}
+
+/* Ensure strong text visible */
+[data-theme="dark"] strong {
+    color: #e1e4e8;
+}
+
+/* Card headers with colored backgrounds should keep their text white */
+[data-theme="dark"] .card-header.bg-purple,
+[data-theme="dark"] .card-header.bg-primary,
+[data-theme="dark"] .card-header.bg-warning,
+[data-theme="dark"] .card-header.bg-success,
+[data-theme="dark"] .card-header.bg-danger,
+[data-theme="dark"] .card-header.bg-info {
+    color: white;
+}
+
+/* Theme toggle button styling */
+[data-theme="dark"] .btn-outline-light:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Debug pulse animation toned down for dark */
+[data-theme="dark"] .btn-outline-warning {
+    animation: none;
+}
+
