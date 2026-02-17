@@ -22,17 +22,32 @@ GRM (GPU Resource Manager) is a Flask-based application that enables efficient m
 - **Intelligent Cache Updates**: Instant UI feedback - VM launches and host migrations appear immediately without waiting for cache expiry
 - **RunPod Integration**: Deploy VMs directly to RunPod platform via Hyperstack API
 - **NetBox Integration**: Automatic tenant and owner group classification
+- **NetBox Branch Switching**: Switch between NetBox branches with automatic cache invalidation
 - **Parallel Data Collection**: 4-agent concurrent system reduces load times from ~300s to ~30s
 - **Smart Caching**: Multi-level TTL-based caching with targeted updates
 - **Bulk Operations**: Concurrent processing for large-scale operations
 - **Command Logging**: Complete audit trail of all operations
 - **Responsive Design**: Bootstrap-based UI that works on all devices
 
+### Rack View
+- **Physical Rack Visualization**: Visual rack elevation view showing device positions and U-heights
+- **Global Search**: Search across all racks and devices
+- **Color-Coded Aggregates**: Visual distinction between spot, on-demand, and contract aggregates
+- **GPU Usage Indicators**: Yellow highlighting for in-use devices, segmented GPU bar visualization
+- **Investor Availability Stats**: Summary of available capacity for investors
+- **Platform Icons**: Visual identification of device platforms
+
+### Aggregate Variants
+- **Drain Aggregates**: Support for maintenance/drain modes (A100-n3-Drain, RTX-A6000-n3-Drain)
+- **NVLink Variants**: Separate column display for NVLink-enabled aggregates
+- **Drain Variants**: Displayed as separate columns alongside NVLink variants
+
 ### Supported GPU Types
 - **L40**: High-performance compute GPUs
-- **RTX-A6000**: Professional workstation GPUs  
+- **RTX-A6000**: Professional workstation GPUs
 - **A100**: Data center AI/ML GPUs
 - **H100**: Next-generation AI training GPUs
+- **RTX 5090**: Latest generation consumer/prosumer GPUs (with NVIDIA UVM stability fix)
 
 ## Performance
 
@@ -122,6 +137,10 @@ RUNPOD_API_KEY=your-runpod-key
 ### Contract Management
 ![Contract](docs/images/contract.png)
 *Dedicated contract aggregate management interface*
+
+### Rack View
+![Rack View](docs/images/rack-view.png)
+*Physical rack elevation visualization with color-coded aggregates and GPU usage indicators*
 
 ## Architecture
 

@@ -867,6 +867,23 @@ def organize_by_netbox_devices(results):
                         })
                         print(f"📌 Added empty aggregate '{agg_name}' to {gpu_type} ondemand variants")
 
+    # Post-process: ensure spot/runpod aggregate names are in config even if they have 0 hosts
+    # generate_config_from_hosts() only discovers aggregate names from hosts that exist,
+    # so empty aggregates get config['spot'] = False, causing 'N/A' in the API response
+    for agg_name in aggregate_to_hosts.keys():
+        agg_match = re.match(r'^([A-Z0-9-]+)-n3(.+)$', agg_name, re.IGNORECASE)
+        if agg_match:
+            suffix_part = agg_match.group(2)
+            gpu_type = agg_match.group(1)
+            if gpu_type in organized:
+                config = organized[gpu_type].get('config', {})
+                if '-spot' in suffix_part.lower() and not config.get('spot'):
+                    config['spot'] = agg_name
+                    print(f"📌 Added empty spot aggregate '{agg_name}' to {gpu_type} config")
+                elif '-runpod' in suffix_part.lower() and not config.get('runpod'):
+                    config['runpod'] = agg_name
+                    print(f"📌 Added empty runpod aggregate '{agg_name}' to {gpu_type} config")
+
     # Debug: Show out-of-stock devices per GPU type
     for gpu_type, column_data in gpu_columns.items():
         outofstock_count = len(column_data.get('outofstock', {}).get('hosts', []))
