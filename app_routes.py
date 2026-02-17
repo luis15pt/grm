@@ -641,8 +641,8 @@ def register_routes(app):
                 }), 400
         
         # OPTIMIZATION: Skip expensive aggregate discovery - trust the frontend's source_aggregate
-        # If source_aggregate is not provided, fall back to discovery as a safety net
-        if not source_aggregate:
+        # Only discover source aggregate for operations that need it (remove/full, not add)
+        if not source_aggregate and operation in ['remove', 'full']:
             print(f"⚠️ No source_aggregate provided, using expensive discovery as fallback...")
             actual_source_aggregate = find_host_current_aggregate(host)
             if not actual_source_aggregate:

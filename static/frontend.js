@@ -343,6 +343,13 @@ function renderHosts(containerId, hosts, type, aggregateName = null, variants = 
         return;
     }
     
+    // For out-of-stock column, group by reason instead of Available/In-Use
+    if (type === 'outofstock') {
+        renderOutOfStockGroups(container, hosts, type, aggregateName);
+        setupDragAndDrop();
+        return;
+    }
+
     // Separate hosts into groups
     const availableHosts = hosts.filter(host => !host.has_vms);
     const inUseHosts = hosts.filter(host => host.has_vms);
@@ -471,6 +478,89 @@ function renderHosts(containerId, hosts, type, aggregateName = null, variants = 
     
     // Re-setup drag and drop for new elements
     setupDragAndDrop();
+}
+
+// Render out-of-stock hosts grouped by reason instead of Available/In-Use
+function renderOutOfStockGroups(container, hosts, type, aggregateName) {
+    // Group hosts by outofstock_reason
+    const groupedByReason = {};
+    hosts.forEach(host => {
+        const reason = host.outofstock_reason || 'Unknown';
+        if (!groupedByReason[reason]) {
+            groupedByReason[reason] = [];
+        }
+        groupedByReason[reason].push(host);
+    });
+
+    let sectionsHtml = '';
+
+    Object.keys(groupedByReason).sort().forEach(reason => {
+        const groupHosts = groupedByReason[reason];
+        const groupId = `outofstock-${reason.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}`;
+
+        // Determine icon based on reason
+        let icon = 'fa-exclamation-triangle text-warning';
+        if (reason.toLowerCase().includes('decommission')) {
+            icon = 'fa-tag text-warning';
+        } else if (reason.toLowerCase().includes('disabled')) {
+            icon = 'fa-ban text-danger';
+        } else if (reason.toLowerCase().includes('testing') || reason.toLowerCase().includes('tempest')) {
+            icon = 'fa-flask text-info';
+        } else if (reason.toLowerCase().includes('not allocated')) {
+            icon = 'fa-unlink text-secondary';
+        }
+
+        // Sub-group by owner within each reason
+        const nexgenHosts = groupHosts.filter(h => h.owner_group === 'Nexgen Cloud');
+        const investorHosts = groupHosts.filter(h => h.owner_group === 'Investors');
+        let subGroups = '';
+
+        if (nexgenHosts.length > 0) {
+            const cards = nexgenHosts.map(h => createHostCardCompact(h, type, aggregateName)).join('');
+            const subId = `${groupId}-nexgen`;
+            subGroups += `
+                <div class="host-subgroup nexgen-group">
+                    <div class="host-subgroup-header clickable" onclick="toggleGroup('${subId}')">
+                        <i class="fas fa-cloud text-info"></i>
+                        <span class="subgroup-title">Nexgen Cloud (${nexgenHosts.length})</span>
+                        <i class="fas fa-chevron-right toggle-icon" id="${subId}-icon"></i>
+                    </div>
+                    <div class="host-subgroup-content collapsed" id="${subId}">
+                        <div class="host-cards-compact">${cards}</div>
+                    </div>
+                </div>`;
+        }
+
+        if (investorHosts.length > 0) {
+            const cards = investorHosts.map(h => createHostCardCompact(h, type, aggregateName)).join('');
+            const subId = `${groupId}-investors`;
+            subGroups += `
+                <div class="host-subgroup investors-group">
+                    <div class="host-subgroup-header clickable" onclick="toggleGroup('${subId}')">
+                        <i class="fas fa-users text-warning"></i>
+                        <span class="subgroup-title">Investor Devices (${investorHosts.length})</span>
+                        <i class="fas fa-chevron-right toggle-icon" id="${subId}-icon"></i>
+                    </div>
+                    <div class="host-subgroup-content collapsed" id="${subId}">
+                        <div class="host-cards-compact">${cards}</div>
+                    </div>
+                </div>`;
+        }
+
+        sectionsHtml += `
+            <div class="host-group">
+                <div class="host-group-header clickable" onclick="toggleGroup('${groupId}')">
+                    <i class="fas ${icon}"></i>
+                    <h6 class="mb-0">${reason} (${groupHosts.length})</h6>
+                    <i class="fas fa-chevron-right toggle-icon" id="${groupId}-icon"></i>
+                </div>
+                <div class="host-group-content collapsed" id="${groupId}">
+                    ${subGroups}
+                </div>
+            </div>`;
+    });
+
+    container.innerHTML = sectionsHtml;
 }
 
 // EXACT ORIGINAL renderOnDemandVariants function
@@ -2145,8 +2235,15 @@ function createHostCardCompact(host, type, aggregateName = null) {
         });
     }
     
-    // Determine card status class
-    const statusClass = hasVms ? 'has-vms' : 'available';
+    // Determine card status class (check NetBox status before VM-based logic)
+    const deviceStatus = host.status || 'active';
+    const statusLabel = host.status_label || 'Active';
+    let statusClass;
+    if (deviceStatus !== 'active') {
+        statusClass = 'non-active';
+    } else {
+        statusClass = hasVms ? 'has-vms' : 'available';
+    }
     
     // GPU badge styling
     const gpuBadgeClass = gpuUsed > 0 ? 'gpu-badge-compact active' : 'gpu-badge-compact zero';
@@ -2174,11 +2271,13 @@ function createHostCardCompact(host, type, aggregateName = null) {
              draggable="true"
              data-host="${host.name}"
              data-type="${type}"
-             data-aggregate="${host.variant || aggregateName || ''}"
+             data-aggregate="${host.variant || host.openstack_aggregate || aggregateName || ''}"
              data-has-vms="${hasVms}"
              data-owner-group="${ownerGroup}"
              data-nvlinks="${host.nvlinks}"
              data-outofstock-reason="${host.outofstock_reason || ''}"
+             data-status="${deviceStatus}"
+             data-status-label="${statusLabel}"
              data-site="${host.site || ''}"
              data-rack="${host.rack || ''}"
              data-tenant="${host.tenant || ''}"
@@ -2240,16 +2339,31 @@ function showHostTooltip(event, element) {
     const flavorName = element.dataset.flavorName;
     const gpuText = element.querySelector('.gpu-badge-compact').textContent;
     
+    const deviceStatus = element.dataset.status || 'active';
+    const deviceStatusLabel = element.dataset.statusLabel || 'Active';
+
     // Get additional data from the element or parse from display
     const hasVmsText = hasVms ? 'Yes' : 'No';
-    const status = hasVms ? 'In Use' : 'Available';
-    
+
+    // Determine display status based on NetBox device status and VM state
+    let status, statusCssClass;
+    if (deviceStatus !== 'active') {
+        status = deviceStatusLabel;  // e.g. "Decommissioning"
+        statusCssClass = 'non-active';
+    } else if (hasVms) {
+        status = 'In Use';
+        statusCssClass = 'in-use';
+    } else {
+        status = 'Available';
+        statusCssClass = 'available';
+    }
+
     // Create comprehensive tooltip content
     let tooltipRows = `
         <div class="tooltip-row">
             <span class="tooltip-label">Status:</span>
             <span class="tooltip-value">
-                <span class="tooltip-status ${hasVms ? 'in-use' : 'available'}">${status}</span>
+                <span class="tooltip-status ${statusCssClass}">${status}</span>
             </span>
         </div>`;
     
@@ -2538,6 +2652,7 @@ window.Frontend = {
     // Functions
     renderAggregateData,
     renderHosts,
+    renderOutOfStockGroups,
     renderHostList,
     renderOnDemandVariantColumns,
     setupDragAndDrop,
