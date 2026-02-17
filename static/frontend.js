@@ -2628,11 +2628,9 @@ function renderBranchSelector() {
     container.style.display = 'block';
 
     let html = `
-        <div class="branch-selector d-flex align-items-center">
-            <label class="me-2 text-muted small" style="white-space: nowrap;">
-                <i class="fas fa-code-branch me-1"></i>NetBox Branch:
-            </label>
-            <select id="netboxBranchSelect" class="form-select form-select-sm" style="width: auto; min-width: 150px;">
+        <div class="nav-item">
+            <label class="text-light small mb-1 d-block">NetBox Branch</label>
+            <select id="netboxBranchSelect" class="form-select form-select-sm" style="min-width: 160px;">
     `;
 
     for (const branch of availableBranches) {
