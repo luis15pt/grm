@@ -1082,7 +1082,13 @@ async function addToPendingOperations(hostname, sourceType, targetType, targetVa
             // Extract base GPU type from aggregate name
             const parts = aggregateName.split('-');
             if (parts.length < 2) return null;
-            
+
+            // Strip known variant prefixes (e.g., Lifeboat-A100 -> A100, Drain-H100 -> H100)
+            const splitSuffixes = getSplitSuffixes();
+            if (splitSuffixes.includes(parts[0].toLowerCase())) {
+                return extractGpuType(parts.slice(1).join('-'));
+            }
+
             // Handle special cases for common GPU types
             if (parts[0] === 'RTX') {
                 if (parts[1] === 'PRO6000' && parts[2] === 'SE') {
@@ -1101,38 +1107,42 @@ async function addToPendingOperations(hostname, sourceType, targetType, targetVa
             }
             return parts[0];  // Fallback to first part
         };
-        
+
+        // Collect migration warnings - all rules are soft (user can confirm to proceed)
+        const warnings = [];
+
+        // Rule 1: GPU type compatibility
         const sourceGpuType = extractGpuType(sourceAggregate);
         const targetGpuType = extractGpuType(targetAggregate);
-        
-        // Validate GPU type compatibility
+
         if (sourceGpuType && targetGpuType && sourceGpuType !== targetGpuType) {
-            console.log('❌ Invalid GPU type migration:', {
-                hostname,
-                sourceAggregate,
-                targetAggregate,
-                sourceGpuType,
-                targetGpuType
+            console.log('⚠️ GPU type mismatch:', {
+                hostname, sourceAggregate, targetAggregate, sourceGpuType, targetGpuType
             });
-            showNotification(`❌ Cannot migrate ${hostname}: GPU types don't match (${sourceGpuType} → ${targetGpuType})`, 'error');
-            return;
+            warnings.push(`GPU type mismatch: ${sourceGpuType} → ${targetGpuType}`);
         }
-        
-        // For on-demand moves with variants, check NVLink compatibility
+
+        // Rule 2: NVLink compatibility
         if (targetType === 'ondemand' && targetVariant && aggregateData.ondemand?.variants) {
             const hostCard = document.querySelector(`[data-host="${hostname}"]`);
             const hasNVLink = hostCard && hostCard.dataset.nvlinks === 'true';
             const targetVariantInfo = aggregateData.ondemand.variants?.find(v => v.aggregate === targetVariant);
             const targetIsNVLink = targetVariantInfo?.variant.toLowerCase().includes('nvlink');
-            
-            // Show warning if NVLink mismatch
+
             if (hasNVLink && !targetIsNVLink) {
-                const proceed = confirm(`⚠️ Warning: Host ${hostname} has NVLink capability but you're moving it to a non-NVLink variant (${targetVariantInfo?.variant}). Do you want to proceed?`);
-                if (!proceed) return;
+                warnings.push(`NVLink mismatch: Host has NVLink but target variant (${targetVariantInfo?.variant}) does not`);
             } else if (!hasNVLink && targetIsNVLink) {
-                const proceed = confirm(`⚠️ Warning: Host ${hostname} does not have NVLink capability but you're moving it to an NVLink variant (${targetVariantInfo?.variant}). Do you want to proceed?`);
-                if (!proceed) return;
+                warnings.push(`NVLink mismatch: Host lacks NVLink but target variant (${targetVariantInfo?.variant}) requires it`);
             }
+        }
+
+        // If there are warnings, show a single confirmation with all rule violations
+        if (warnings.length > 0) {
+            const ruleList = warnings.map((w, i) => `  ${i + 1}. ${w}`).join('\n');
+            const proceed = confirm(
+                `⚠️ Moving ${hostname} from ${sourceAggregate} → ${targetAggregate} violates ${warnings.length} rule(s):\n\n${ruleList}\n\nDo you want to proceed anyway?`
+            );
+            if (!proceed) return;
         }
         
         // Check if operation already exists
