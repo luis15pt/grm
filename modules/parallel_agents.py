@@ -1056,14 +1056,18 @@ def finalize_gpu_column_with_pools(column_data):
     
     result = {}
     all_hosts = []
-    
+
     # Process each pool (runpod, spot, ondemand, contract, outofstock)
     for pool_type, pool_data in column_data.items():
         if not isinstance(pool_data, dict) or 'hosts' not in pool_data:
             continue
-            
+
         hosts = pool_data['hosts']
-        all_hosts.extend(hosts)  # Collect for config generation
+        # Only include productive pool hosts in the flat list (not outofstock)
+        # Outofstock hosts retain their original aggregate name but have no _assignment,
+        # which causes them to be misclassified by the variant fallback logic
+        if pool_type != 'outofstock':
+            all_hosts.extend(hosts)
         
         # Calculate GPU summary for this pool
         total_used = sum(host.get('gpu_used', 0) for host in hosts)
