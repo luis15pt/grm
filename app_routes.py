@@ -476,7 +476,8 @@ def register_routes(app):
             print(f"  OutOfStock: {outofstock_gpu_summary}")
             
             # Overall GPU summary (On-Demand + RunPod + Spot + Contracts)
-            total_gpu_used = ondemand_gpu_summary['gpu_used'] + runpod_gpu_summary['gpu_used'] + spot_gpu_summary['gpu_used'] + contract_gpu_summary['gpu_used']
+            # Contract GPUs count full capacity as "used" since they're reserved/paid for
+            total_gpu_used = ondemand_gpu_summary['gpu_used'] + runpod_gpu_summary['gpu_used'] + spot_gpu_summary['gpu_used'] + contract_gpu_summary['gpu_capacity']
             total_gpu_capacity = ondemand_gpu_summary['gpu_capacity'] + runpod_gpu_summary['gpu_capacity'] + spot_gpu_summary['gpu_capacity'] + contract_gpu_summary['gpu_capacity']
             gpu_usage_percentage = round((total_gpu_used / total_gpu_capacity * 100) if total_gpu_capacity > 0 else 0, 1)
             

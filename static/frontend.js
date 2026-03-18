@@ -241,9 +241,11 @@ function renderAggregateData(data) {
         }
     }
     
-    // Add Contract GPUs (use filtered data instead of DOM elements)
+    // Add Contract GPUs - count full contracted capacity as "used" since those GPUs are reserved/paid for
+    // The contract column still shows active vs capacity (e.g. 78/120), but for the total banner
+    // all contracted GPUs count as utilized since they're not available for other use
     if (data.contracts && data.contracts.gpu_summary) {
-        totalGpuUsed += data.contracts.gpu_summary.gpu_used || 0;
+        totalGpuUsed += data.contracts.gpu_summary.gpu_capacity || 0;
         totalGpuCapacity += data.contracts.gpu_summary.gpu_capacity || 0;
     }
     
@@ -258,7 +260,7 @@ function renderAggregateData(data) {
     document.getElementById('totalGpuUsage').textContent = `${totalGpuUsed}/${totalGpuCapacity} GPUs`;
     document.getElementById('gpuUsagePercentage').textContent = `${totalGpuPercentage}%`;
     
-    console.log(`📊 Total GPU Usage: ${totalGpuUsed}/${totalGpuCapacity} (${totalGpuPercentage}%) - RunPod: ${data.runpod?.gpu_summary?.gpu_used || 0}, Spot: ${data.spot?.gpu_summary?.gpu_used || 0}, OnDemand: ${data.ondemand?.gpu_summary?.gpu_used || 0}, Contracts: ${data.contracts?.gpu_summary?.gpu_used || 0}, OutOfStock: ${data.outofstock?.gpu_summary?.gpu_capacity || 0} capacity`);
+    console.log(`📊 Total GPU Usage: ${totalGpuUsed}/${totalGpuCapacity} (${totalGpuPercentage}%) - RunPod: ${data.runpod?.gpu_summary?.gpu_used || 0}, Spot: ${data.spot?.gpu_summary?.gpu_used || 0}, OnDemand: ${data.ondemand?.gpu_summary?.gpu_used || 0}, Contracts: ${data.contracts?.gpu_summary?.gpu_capacity || 0} (reserved), OutOfStock: ${data.outofstock?.gpu_summary?.gpu_capacity || 0} capacity`);
     
     // Update NetBox vs Columns comparison (handled by banner.js)
     if (window.updateNetBoxInventoryComparison) {
