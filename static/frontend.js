@@ -174,6 +174,11 @@ function renderAggregateData(data) {
         document.getElementById('spotGpuPercent').textContent = spotPercent + '%';
         document.getElementById('spotGpuProgressBar').style.width = spotPercent + '%';
     }
+
+    // How many spot hosts are actually sellable vs still draining on-demand VMs
+    if (window.columns && window.columns.spot && window.columns.spot.updateReadinessStats) {
+        window.columns.spot.updateReadinessStats(data.spot.hosts || []);
+    }
     
     // Update RunPod GPU statistics
     if (data.runpod.gpu_summary) {
@@ -2259,6 +2264,15 @@ function createHostCardCompact(host, type, aggregateName = null) {
     
     // GPU badge styling
     const gpuBadgeClass = gpuUsed > 0 ? 'gpu-badge-compact active' : 'gpu-badge-compact zero';
+
+    // Spot readiness - a spot host is only sellable once its on-demand VMs have drained
+    const ondemandVmCount = host.ondemand_vm_count || 0;
+    const spotReady = host.spot_ready !== undefined ? host.spot_ready : ondemandVmCount === 0;
+    const spotBadge = type === 'spot'
+        ? (spotReady
+            ? '<span class="spot-badge-compact ready" title="Ready to sell as spot">SPOT</span>'
+            : `<span class="spot-badge-compact waiting" title="${ondemandVmCount} on-demand VM${ondemandVmCount === 1 ? '' : 's'} still running">${ondemandVmCount} OD</span>`)
+        : '';
     
     // Owner badge styling
     const ownerBadgeClass = ownerGroup === 'Nexgen Cloud' ? 'owner-badge-compact nexgen' : 'owner-badge-compact investors';
@@ -2297,6 +2311,8 @@ function createHostCardCompact(host, type, aggregateName = null) {
              data-openstack-aggregate="${host.openstack_aggregate || ''}"
              data-vm-count="${host.vm_count || 0}"
              data-flavor-name="${flavorName}"
+             data-spot-ready="${spotReady}"
+             data-ondemand-vm-count="${ondemandVmCount}"
              onmouseenter="showHostTooltip(event, this)"
              onmouseleave="hideHostTooltip()"
              onclick="handleCardClick(event, this)">
@@ -2308,6 +2324,7 @@ function createHostCardCompact(host, type, aggregateName = null) {
                     <div class="machine-name-compact">${host.name}</div>
                     <div class="machine-stats-compact">
                         <span class="${gpuBadgeClass}">${gpuRatio}</span>
+                        ${spotBadge}
                         <span class="${ownerBadgeClass}">${ownerGroup === 'Nexgen Cloud' ? 'NGC' : tenant}</span>
                     </div>
                 </div>

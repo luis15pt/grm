@@ -210,6 +210,14 @@
                                             <div class="d-flex justify-content-between"><span class="text-secondary"><i class="fas fa-circle"></i> In Use:</span><strong id="optA-investor-inuse">-</strong></div>
                                         </div>
                                     </div>
+                                    <!-- RIGHT: SPOT READINESS -->
+                                    <div class="col">
+                                        <h6 class="text-muted mb-2">SPOT READINESS</h6>
+                                        <div>
+                                            <div class="d-flex justify-content-between mb-1"><span class="text-success"><i class="fas fa-circle-check"></i> Ready:</span><strong id="optA-spot-ready">-</strong></div>
+                                            <div class="d-flex justify-content-between"><span class="text-warning"><i class="fas fa-hourglass-half"></i> Waiting:</span><strong id="optA-spot-waiting">-</strong></div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -358,6 +366,7 @@
                                                     <div class="progress mt-1" style="height: 6px;">
                                                         <div class="progress-bar bg-dark" role="progressbar" style="width: 0%" id="spotGpuProgressBar"></div>
                                                     </div>
+                                                    <small class="text-dark d-block mt-1" id="spotReadyStat">0 ready / 0 waiting</small>
                                                 </div>
                                             </div>
                                             <div class="card-body drop-zone" id="spotHosts" data-type="spot">
@@ -631,11 +640,19 @@
                                         <div class="d-flex flex-wrap gap-4">
                                             <div class="d-flex align-items-center gap-2">
                                                 <span style="display: inline-block; width: 20px; height: 16px; background: linear-gradient(135deg, #3498db, #2980b9); border-radius: 3px;"></span>
-                                                <span class="small">Investor Spot (A100/A6000-n3-spot)</span>
+                                                <span class="small">Investor Spot</span>
                                             </div>
                                             <div class="d-flex align-items-center gap-2">
                                                 <span style="display: inline-block; width: 20px; height: 16px; background: linear-gradient(135deg, #00b894, #00a085); border-radius: 3px;"></span>
-                                                <span class="small">NexGen Spot (A100/A6000-n3-spot)</span>
+                                                <span class="small">NexGen Spot</span>
+                                            </div>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span style="display: inline-block; width: 20px; height: 16px; background: linear-gradient(135deg, #00b894, #00a085); border: 1px solid rgba(255, 255, 255, 0.55); border-radius: 3px;"></span>
+                                                <span class="small">Spot &mdash; ready to sell (solid)</span>
+                                            </div>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span style="display: inline-block; width: 20px; height: 16px; background: repeating-linear-gradient(45deg, #00b894 0px, #00b894 6px, #e17055 6px, #e17055 12px); border-radius: 3px;"></span>
+                                                <span class="small">Spot &mdash; on-demand VMs still running (hatched)</span>
                                             </div>
                                             <div class="d-flex align-items-center gap-2">
                                                 <span style="display: inline-block; width: 20px; height: 16px; background: linear-gradient(135deg, #e84393, #d63384); border-radius: 3px;"></span>

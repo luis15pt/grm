@@ -2726,6 +2726,27 @@ body {
     border-color: #28a745;
 }
 
+/* Spot readiness badge - shown on spot column cards only */
+.spot-badge-compact {
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-weight: 600;
+    font-size: 0.7rem;
+    border: 1px solid transparent;
+}
+
+.spot-badge-compact.ready {
+    background: #00b894;
+    color: white;
+    border-color: #00b894;
+}
+
+.spot-badge-compact.waiting {
+    background: #e17055;
+    color: white;
+    border-color: #e17055;
+}
+
 .owner-badge-compact {
     font-size: 0.65rem;
     padding: 1px 4px;
@@ -3511,6 +3532,11 @@ body {
     border-right: none;
 }
 
+/* On-demand VM segments - the ones blocking a spot host from being sold */
+.gpu-segment-ondemand {
+    background: #e17055;
+}
+
 /* Platform Icons for Rack Devices (buffs style) */
 .platform-icon {
     width: 14px;
@@ -3623,6 +3649,52 @@ body {
 .device-nexgen-spot .device-owner-badge,
 .device-nexgen-spot .device-gpu-usage {
     color: white;
+}
+
+/* Spot Readiness - solid owner colour = ready to sell, hatched = on-demand VMs
+   still draining off. Same barber-pole idiom as .decommissioning above. */
+.rack-device.spot-ready {
+    border-color: rgba(255, 255, 255, 0.55);
+}
+
+.rack-device.spot-waiting::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    background: repeating-linear-gradient(
+        45deg,
+        rgba(0, 0, 0, 0) 0px,
+        rgba(0, 0, 0, 0) 6px,
+        rgba(225, 112, 85, 0.55) 6px,
+        rgba(225, 112, 85, 0.55) 12px
+    );
+}
+
+/* Keep card content above the hatch overlay */
+.rack-device.spot-waiting > * {
+    position: relative;
+    z-index: 1;
+}
+
+.spot-ready-icon {
+    color: rgba(255, 255, 255, 0.95);
+    font-size: 11px;
+}
+
+.spot-od-badge {
+    background: #e17055;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 0 4px;
+    border-radius: 3px;
+    line-height: 14px;
+    white-space: nowrap;
 }
 
 /* Contract Devices - Pink */

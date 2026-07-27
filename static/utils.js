@@ -73,6 +73,24 @@ function getCommandIcon(type) {
     }
 }
 
+// Spot readiness rollup - a host is ready to sell as spot when nothing on-demand is
+// still running on it. The per-host spot_ready flag is computed by the backend; this
+// only counts it up so the column header and rack summary share one implementation.
+function summarizeSpotReadiness(hosts) {
+    const summary = { ready: 0, waiting: 0 };
+    if (!Array.isArray(hosts)) return summary;
+
+    hosts.forEach(host => {
+        if (host && host.spot_ready) {
+            summary.ready++;
+        } else {
+            summary.waiting++;
+        }
+    });
+
+    return summary;
+}
+
 // Export utilities for use in other modules
 window.Utils = {
     checkResponse,
@@ -81,5 +99,9 @@ window.Utils = {
     getStatusIcon,
     getStatusColor,
     formatDate,
-    getCommandIcon
+    getCommandIcon,
+    summarizeSpotReadiness
 };
+
+// Also expose directly - used by rack-view.js and spot-column.js
+window.summarizeSpotReadiness = summarizeSpotReadiness;

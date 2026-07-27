@@ -843,7 +843,14 @@ function processParallelDataForGpuType(gpuType) {
                 netbox_url: tenantInfo.netbox_url,
                 gpu_used: hostInfo.gpu_used || 0,
                 gpu_capacity: hostInfo.gpu_capacity || 8,
-                gpu_usage_ratio: hostInfo.gpu_usage_ratio || '0/8'
+                gpu_usage_ratio: hostInfo.gpu_usage_ratio || '0/8',
+                // Spot readiness - must match app_routes.py process_hosts_from_parallel_data,
+                // since this client-side path is preferred over the API when cache is warm
+                spot_ready: hostInfo.spot_ready !== undefined
+                    ? hostInfo.spot_ready
+                    : (hostInfo.vm_count || 0) === 0,
+                ondemand_vm_count: hostInfo.ondemand_vm_count || 0,
+                vm_spot_breakdown: hostInfo.vm_spot_breakdown || []
             };
 
             if (aggregateType === 'ondemand' && ondemandHostVariants[hostname]) {

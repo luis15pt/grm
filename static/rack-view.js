@@ -199,11 +199,16 @@ class RackView {
             let investorEmptyCount = 0;
             let investorInUseCount = 0;
 
+            const spotDevices = [];
+
             if (data.racks) {
                 data.racks.forEach(rack => {
                     if (rack.devices) {
                         rack.devices.forEach(device => {
                             const isInUse = (device.gpu_used || 0) > 0;
+                            if (this.isSpotDevice(device)) {
+                                spotDevices.push(device);
+                            }
                             if (device.owner_group === 'Nexgen Cloud') {
                                 if (isInUse) nexgenInUseCount++;
                                 else nexgenEmptyCount++;
@@ -216,6 +221,8 @@ class RackView {
                 });
             }
 
+            const spotReadiness = this.summarizeSpot(spotDevices);
+
             // Build GPU breakdown HTML
             let gpuBreakdownHtml = '';
             Object.entries(byGpu).forEach(([gpu, counts]) => {
@@ -225,7 +232,7 @@ class RackView {
             });
 
             // Update the preview options
-            this.updatePreviewOptions(byOwner, totals, nexgenEmptyCount, nexgenInUseCount, investorEmptyCount, investorInUseCount, gpuBreakdownHtml);
+            this.updatePreviewOptions(byOwner, totals, nexgenEmptyCount, nexgenInUseCount, investorEmptyCount, investorInUseCount, gpuBreakdownHtml, spotReadiness);
 
         } catch (error) {
             console.error('Failed to load global rack summary:', error);
@@ -250,6 +257,25 @@ class RackView {
     }
 
     /**
+     * Is this device in the spot pool? Prefer the pool the backend assigned and fall
+     * back to the aggregate suffix, so every GPU type is covered.
+     */
+    isSpotDevice(device) {
+        return device.pool
+            ? device.pool === 'spot'
+            : (device.aggregate || '').toLowerCase().includes('-spot');
+    }
+
+    /**
+     * Count spot hosts that are ready to sell vs still draining on-demand VMs
+     */
+    summarizeSpot(devices) {
+        return typeof window.summarizeSpotReadiness === 'function'
+            ? window.summarizeSpotReadiness(devices)
+            : { ready: 0, waiting: 0 };
+    }
+
+    /**
      * Render the summary panel
      */
     renderSummary() {
@@ -266,11 +292,16 @@ class RackView {
         let nexgenInUseCount = 0;
         let investorEmptyCount = 0;
         let investorInUseCount = 0;
+        // Spot readiness - how much of the spot pool is actually sellable right now
+        const spotDevices = [];
         if (this.rackData.racks) {
             this.rackData.racks.forEach(rack => {
                 if (rack.devices) {
                     rack.devices.forEach(device => {
                         const isInUse = (device.gpu_used || 0) > 0;
+                        if (this.isSpotDevice(device)) {
+                            spotDevices.push(device);
+                        }
                         if (device.owner_group === 'Nexgen Cloud') {
                             if (isInUse) {
                                 nexgenInUseCount++;
@@ -289,6 +320,8 @@ class RackView {
                 }
             });
         }
+
+        const spotReadiness = this.summarizeSpot(spotDevices);
 
         // Build GPU breakdown HTML
         let gpuBreakdownHtml = '';
@@ -366,7 +399,20 @@ class RackView {
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-2">
+                    <div class="summary-card">
+                        <h6 class="text-muted mb-2">SPOT READINESS</h6>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-success"><i class="fas fa-circle-check"></i> Ready:</span>
+                            <strong>${spotReadiness.ready}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-warning"><i class="fas fa-hourglass-half"></i> Waiting:</span>
+                            <strong>${spotReadiness.waiting}</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2">
                     <div class="summary-card">
                         <h6 class="text-muted mb-2">GPU BREAKDOWN</h6>
                         <div class="gpu-breakdown">
@@ -378,13 +424,13 @@ class RackView {
         `;
 
         // Also populate the 3 preview options in gpuTypeSummary
-        this.updatePreviewOptions(byOwner, totals, nexgenEmptyCount, nexgenInUseCount, investorEmptyCount, investorInUseCount, gpuBreakdownHtml);
+        this.updatePreviewOptions(byOwner, totals, nexgenEmptyCount, nexgenInUseCount, investorEmptyCount, investorInUseCount, gpuBreakdownHtml, spotReadiness);
     }
 
     /**
      * Update the 3 preview layout options with data
      */
-    updatePreviewOptions(byOwner, totals, nexgenEmptyCount, nexgenInUseCount, investorEmptyCount, investorInUseCount, gpuBreakdownHtml) {
+    updatePreviewOptions(byOwner, totals, nexgenEmptyCount, nexgenInUseCount, investorEmptyCount, investorInUseCount, gpuBreakdownHtml, spotReadiness = { ready: 0, waiting: 0 }) {
         const nexgenTotal = byOwner['Nexgen Cloud']?.total || 0;
         const investorsTotal = byOwner['Investors']?.total || 0;
         const totalDevices = totals.total_devices || 0;
@@ -417,6 +463,8 @@ class RackView {
         setText('optA-forsale', forSale);
         setText('optA-investor-empty', investorEmptyCount);
         setText('optA-investor-inuse', investorInUseCount);
+        setText('optA-spot-ready', spotReadiness.ready);
+        setText('optA-spot-waiting', spotReadiness.waiting);
         setText('optA-netbox', netboxCount);
         setText('optA-active', activeCount);
         setText('optA-racks', racksCount);
@@ -541,14 +589,19 @@ class RackView {
         const usagePercent = gpuCapacity > 0 ? (gpuUsed / gpuCapacity) : 0;
         const vmCount = device.vm_count || 0;
         const vmGpuBreakdown = device.vm_gpu_breakdown || [];
+        const vmSpotBreakdown = device.vm_spot_breakdown || [];
         const aggregate = device.aggregate || '';
 
-        // Generate segmented bar for VM GPU distribution
+        // Generate segmented bar for VM GPU distribution - on-demand VMs are marked
+        // separately so the ones blocking a spot sale are visible at a glance
         const segmentedBar = vmGpuBreakdown.length > 0
             ? `<div class="gpu-segment-bar">
-                ${vmGpuBreakdown.map((gpus, i) =>
-                    `<div class="gpu-segment" style="width: ${(gpus / gpuCapacity) * 100}%" title="VM ${i+1}: ${gpus} GPU${gpus > 1 ? 's' : ''}"></div>`
-                ).join('')}
+                ${vmGpuBreakdown.map((gpus, i) => {
+                    const isSpotVm = vmSpotBreakdown[i] === true;
+                    const segmentClass = isSpotVm ? 'gpu-segment' : 'gpu-segment gpu-segment-ondemand';
+                    const vmLabel = isSpotVm ? 'spot' : 'on-demand';
+                    return `<div class="${segmentClass}" style="width: ${(gpus / gpuCapacity) * 100}%" title="VM ${i+1}: ${gpus} GPU${gpus > 1 ? 's' : ''} (${vmLabel})"></div>`;
+                }).join('')}
                </div>`
             : '';
 
@@ -574,8 +627,17 @@ class RackView {
 
         // Check aggregate type for special coloring
         const aggregateLower = (device.aggregate || '').toLowerCase();
-        const isSpotAggregate = aggregateLower.includes('a100-n3-spot') || aggregateLower.includes('a6000-n3-spot');
+        // Use the pool the backend assigned; fall back to a generic suffix match so this
+        // works for every GPU type, not just the two aggregates that used to be hardcoded
+        const isSpotAggregate = device.pool
+            ? device.pool === 'spot'
+            : aggregateLower.includes('-spot');
         const isContractAggregate = aggregateLower.includes('contract');
+
+        // Spot readiness: a host in the spot aggregate is only sellable once every
+        // on-demand VM has drained off it
+        const ondemandVmCount = device.ondemand_vm_count || 0;
+        const spotReady = device.spot_ready !== undefined ? device.spot_ready : ondemandVmCount === 0;
 
         if (isContractAggregate) {
             // Contract aggregate: Pink for NexGen, Grey for Investor
@@ -591,6 +653,8 @@ class RackView {
             } else {
                 deviceClass += ' device-nexgen-spot';
             }
+            // Solid = ready to sell, hatched = still draining on-demand VMs
+            deviceClass += spotReady ? ' spot-ready' : ' spot-waiting';
         } else if (!isNexgen) {
             // Investor devices (non-spot): blue if empty (0/8), grey if in use
             if (gpuUsed === 0) {
@@ -626,6 +690,14 @@ class RackView {
         // Status indicator
         const statusIcon = device.status === 'decommissioning' ? '<i class="fas fa-tag"></i>' : '';
 
+        // Spot readiness indicator - only meaningful for hosts in the spot aggregate
+        let spotIcon = '';
+        if (isSpotAggregate) {
+            spotIcon = spotReady
+                ? '<i class="fas fa-circle-check spot-ready-icon" title="Ready to sell as spot"></i>'
+                : `<span class="spot-od-badge" title="${ondemandVmCount} on-demand VM${ondemandVmCount === 1 ? '' : 's'} still running">${ondemandVmCount} OD</span>`;
+        }
+
         return `
             <div class="${deviceClass}"
                  style="${inlineStyle}"
@@ -640,7 +712,11 @@ class RackView {
                  data-gpu-capacity="${gpuCapacity}"
                  data-gpu-ratio="${gpuUsageRatio}"
                  data-aggregate="${device.aggregate || ''}"
-                 data-vm-count="${vmCount}">
+                 data-vm-count="${vmCount}"
+                 data-pool="${device.pool || ''}"
+                 data-is-spot="${isSpotAggregate}"
+                 data-spot-ready="${spotReady}"
+                 data-ondemand-vm-count="${ondemandVmCount}">
                 <div class="device-info">
                     <span class="device-name">${displayName}</span>
                     ${device.nvlinks ? '<i class="fas fa-link nvlink-icon"></i>' : ''}
@@ -649,6 +725,7 @@ class RackView {
                 <div class="device-buffs">
                     ${platformIcon}
                     ${contractIcon}
+                    ${spotIcon}
                     ${statusIcon}
                 </div>
                 <div class="device-stats">
@@ -735,6 +812,9 @@ class RackView {
         const gpuCapacity = parseInt(deviceEl.dataset.gpuCapacity) || 8;
         const gpuRatio = deviceEl.dataset.gpuRatio || `${gpuUsed}/${gpuCapacity}`;
         const aggregate = deviceEl.dataset.aggregate || '';
+        const isSpot = deviceEl.dataset.isSpot === 'true';
+        const spotReady = deviceEl.dataset.spotReady === 'true';
+        const ondemandVmCount = parseInt(deviceEl.dataset.ondemandVmCount) || 0;
 
         const ownerBadge = owner === 'Nexgen Cloud'
             ? '<span class="badge bg-success">NexGen</span>'
@@ -752,6 +832,16 @@ class RackView {
         const gpuUsageBadge = gpuUsed > 0
             ? `<span class="badge bg-warning text-dark">${gpuRatio} In Use</span>`
             : `<span class="badge bg-success">${gpuRatio} Available</span>`;
+
+        // Spot readiness row - only shown for hosts in the spot aggregate
+        const spotRow = isSpot
+            ? `<div class="tooltip-row">
+                    <span class="tooltip-label">Spot:</span>
+                    <span class="tooltip-value">${spotReady
+                        ? '<span class="badge bg-success">Ready to sell</span>'
+                        : `<span class="badge bg-warning text-dark">${ondemandVmCount} on-demand VM${ondemandVmCount === 1 ? '' : 's'} running</span>`}</span>
+               </div>`
+            : '';
 
         let tooltip = document.getElementById('rackDeviceTooltip');
         if (!tooltip) {
@@ -784,6 +874,7 @@ class RackView {
                     <span class="tooltip-label">GPU Usage:</span>
                     <span class="tooltip-value">${gpuUsageBadge}</span>
                 </div>
+                ${spotRow}
                 <div class="tooltip-row">
                     <span class="tooltip-label">Status:</span>
                     <span class="tooltip-value">${statusBadge} ${nvlinkBadge}</span>
