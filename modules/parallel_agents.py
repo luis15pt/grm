@@ -7,6 +7,7 @@ import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from .openstack_operations import get_openstack_connection
 from .netbox_utils import build_netbox_headers, get_cache_key_suffix
+from .utility_functions import is_spot_flavor
 
 # Global cache for parallel agent results
 _parallel_cache = {}
@@ -320,9 +321,12 @@ def netbox_agent(branch=None):
                 'gpu_capacity': 8,  # Default assumption
                 'gpu_usage_ratio': '0/8',
                 'vm_count': 0,
-                'has_vms': False
+                'has_vms': False,
+                'ondemand_vm_count': 0,
+                'spot_ready': True,  # No VMs known yet = nothing blocking
+                'vm_spot_breakdown': []
             }
-            
+
             # Add to complete inventory
             all_netbox_devices[hostname] = device_record
             
@@ -1547,6 +1551,25 @@ def get_host_vm_count_direct(hostname):
         print(f"❌ VM Count Agent error for {hostname}: {e}")
         return 0
 
+_unexpected_spot_flavors = set()
+_unexpected_spot_flavors_lock = threading.Lock()
+
+def _warn_on_unexpected_spot_flavor(flavor_name):
+    """Surface flavors that mention spot but don't end in '-spot' (once per name)
+
+    Spot detection keys off the '-spot' suffix. If a naming exception ever ships, this
+    makes it visible in the logs instead of silently counting the VM as on-demand.
+    """
+    if not flavor_name or 'spot' not in str(flavor_name).lower():
+        return
+
+    with _unexpected_spot_flavors_lock:
+        if flavor_name in _unexpected_spot_flavors:
+            return
+        _unexpected_spot_flavors.add(flavor_name)
+
+    print(f"⚠️ Flavor '{flavor_name}' mentions spot but does not end in '-spot' - counting as on-demand")
+
 def get_host_gpu_info_direct(hostname):
     """Get GPU usage information for a host based on VM flavors"""
     try:
@@ -1566,6 +1589,8 @@ def get_host_gpu_info_direct(hostname):
         # Calculate total GPU usage from all VMs
         total_gpu_used = 0
         vm_gpu_breakdown = []  # List of GPU counts per VM
+        vm_spot_breakdown = []  # Parallel to vm_gpu_breakdown: is each VM a spot VM?
+        ondemand_vm_count = 0  # VMs blocking this host from being sold as spot
         for server in servers:
             # Get flavor info and extract GPU count - try multiple ways to get flavor name
             flavor_name = None
@@ -1579,6 +1604,13 @@ def get_host_gpu_info_direct(hostname):
                 flavor_name = server.flavor_name
 
 
+            # Spot readiness: every VM counts, even ones whose flavor we can't parse.
+            # Anything not positively identified as spot blocks the host from being sold.
+            is_spot = is_spot_flavor(flavor_name)
+            if not is_spot:
+                ondemand_vm_count += 1
+                _warn_on_unexpected_spot_flavor(flavor_name)
+
             if flavor_name and flavor_name != 'N/A':
                 # Extract GPU count from flavor name like 'n3-H100x1', 'n3-H100x2', 'n3-RTX-A6000x8'
                 import re
@@ -1587,22 +1619,26 @@ def get_host_gpu_info_direct(hostname):
                     gpu_count = int(match.group(1))
                     total_gpu_used += gpu_count
                     vm_gpu_breakdown.append(gpu_count)
+                    vm_spot_breakdown.append(is_spot)
                 else:
                     pass
-        
+
         # Determine total GPU capacity based on host type
         host_gpu_capacity = 10 if 'A4000' in hostname else 8
-        
+
         # CRITICAL FIX: If no VMs found, total_gpu_used should definitely be 0
         if len(servers) == 0:
             total_gpu_used = 0
-        
-        
+
+
         return {
             'gpu_used': total_gpu_used,
             'gpu_capacity': host_gpu_capacity,
             'gpu_usage_ratio': f"{total_gpu_used}/{host_gpu_capacity}",
-            'vm_gpu_breakdown': vm_gpu_breakdown
+            'vm_gpu_breakdown': vm_gpu_breakdown,
+            'vm_spot_breakdown': vm_spot_breakdown,
+            'ondemand_vm_count': ondemand_vm_count,
+            'spot_ready': ondemand_vm_count == 0
         }
 
     except Exception as e:
@@ -1611,7 +1647,10 @@ def get_host_gpu_info_direct(hostname):
             'gpu_used': 0,
             'gpu_capacity': 8,  # Default to 8 GPUs
             'gpu_usage_ratio': "0/8",
-            'vm_gpu_breakdown': []
+            'vm_gpu_breakdown': [],
+            'vm_spot_breakdown': [],
+            'ondemand_vm_count': 0,
+            'spot_ready': False  # Unknown state must never read as ready to sell
         }
 
 def clear_parallel_cache(branch=None):

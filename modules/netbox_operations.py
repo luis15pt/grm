@@ -191,6 +191,9 @@ def get_rack_visualization_data(site_filter=None, gpu_type_filter=None, owner_fi
                     # Add gpu_type to host data if not present
                     if 'gpu_type' not in host or not host.get('gpu_type'):
                         host['gpu_type'] = gpu_type_key
+                    # Record which pool this host came from - lets the rack view identify
+                    # spot hosts without string-matching aggregate names
+                    host['pool'] = pool_name
                     all_hosts.append(host)
 
         print(f"📊 Loaded {len(all_hosts)} hosts from parallel agents")
@@ -261,7 +264,11 @@ def get_rack_visualization_data(site_filter=None, gpu_type_filter=None, owner_fi
                 "gpu_used": host.get('gpu_used', 0),
                 "gpu_capacity": host.get('gpu_capacity', 8),
                 "aggregate": host.get('aggregate', ''),
-                "vm_gpu_breakdown": host.get('vm_gpu_breakdown', [])
+                "vm_gpu_breakdown": host.get('vm_gpu_breakdown', []),
+                "pool": host.get('pool', ''),
+                "spot_ready": host.get('spot_ready', host.get('vm_count', 0) == 0),
+                "ondemand_vm_count": host.get('ondemand_vm_count', 0),
+                "vm_spot_breakdown": host.get('vm_spot_breakdown', [])
             }
 
             # Update summary counters

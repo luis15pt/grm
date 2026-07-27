@@ -363,7 +363,15 @@ def register_routes(app):
                         }
                     else:
                         gpu_info = {'gpu_used': 0, 'gpu_capacity': 8, 'gpu_usage_ratio': '0/8'}
-                    
+
+                    # Spot readiness - deliberately not gated behind include_gpu_info, since
+                    # zeroing it would make ready hosts look like they're still draining
+                    spot_info = {
+                        'spot_ready': host_info.get('spot_ready', vm_count == 0),
+                        'ondemand_vm_count': host_info.get('ondemand_vm_count', 0),
+                        'vm_spot_breakdown': host_info.get('vm_spot_breakdown', [])
+                    }
+
                     if aggregate_type in ['spot', 'ondemand', 'contracts']:
                         host_data = {
                             'name': hostname,
@@ -376,7 +384,8 @@ def register_routes(app):
                             'netbox_url': tenant_info['netbox_url'],
                             'gpu_used': gpu_info['gpu_used'],
                             'gpu_capacity': gpu_info['gpu_capacity'],
-                            'gpu_usage_ratio': gpu_info['gpu_usage_ratio']
+                            'gpu_usage_ratio': gpu_info['gpu_usage_ratio'],
+                            **spot_info
                         }
                         # Add variant information for on-demand hosts
                         if aggregate_type == 'ondemand' and hostname in ondemand_host_variants:
@@ -399,9 +408,10 @@ def register_routes(app):
                             'netbox_url': tenant_info['netbox_url'],
                             'gpu_used': gpu_info['gpu_used'],
                             'gpu_capacity': gpu_info['gpu_capacity'],
-                            'gpu_usage_ratio': gpu_info['gpu_usage_ratio']
+                            'gpu_usage_ratio': gpu_info['gpu_usage_ratio'],
+                            **spot_info
                         }
-                    
+
                     processed.append(host_data)
                 
                 return processed

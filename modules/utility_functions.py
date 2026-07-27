@@ -14,6 +14,17 @@ def extract_gpu_count_from_flavor(flavor_name):
         return int(match.group(1))
     return 0
 
+def is_spot_flavor(flavor_name):
+    """Check if a flavor is a spot flavor - name ends with '-spot' like 'n3-RTX-A6000x1-spot'
+
+    Anything we can't positively identify as spot counts as on-demand, so a host is
+    never reported as ready to sell on missing or malformed flavor data.
+    """
+    if not flavor_name or flavor_name == 'N/A':
+        return False
+
+    return str(flavor_name).strip().lower().endswith('-spot')
+
 def get_gpu_type_from_aggregate(aggregate_name):
     """Extract GPU type from aggregate name like 'RTX-A6000-n3-runpod' -> 'RTX-A6000'"""
     if not aggregate_name:
