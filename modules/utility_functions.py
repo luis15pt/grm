@@ -25,6 +25,73 @@ def is_spot_flavor(flavor_name):
 
     return str(flavor_name).strip().lower().endswith('-spot')
 
+class CaseInsensitiveDict(dict):
+    """Dict whose string-key lookups ignore case.
+
+    NetBox and OpenStack don't always agree on hostname casing. A plain dict
+    lookup silently misses, and the host then reads as "not in any aggregate"
+    with zero VMs and zero GPUs. Keys are stored normalized; original_key()
+    returns the casing the source actually reported.
+    """
+
+    def __init__(self, data=None):
+        super().__init__()
+        self._original_keys = {}
+        if data:
+            for key, value in data.items():
+                self[key] = value
+
+    @staticmethod
+    def _norm(key):
+        return key.lower() if isinstance(key, str) else key
+
+    def __setitem__(self, key, value):
+        normalized = self._norm(key)
+        self._original_keys[normalized] = key
+        super().__setitem__(normalized, value)
+
+    def __getitem__(self, key):
+        return super().__getitem__(self._norm(key))
+
+    def __contains__(self, key):
+        return super().__contains__(self._norm(key))
+
+    def get(self, key, default=None):
+        return super().get(self._norm(key), default)
+
+    def original_key(self, key, default=None):
+        """Return the key as originally stored (e.g. OpenStack's own casing)"""
+        return self._original_keys.get(self._norm(key), default)
+
+
+class CaseInsensitiveSet(set):
+    """Set of strings whose membership test ignores case.
+
+    Original strings are preserved for iteration and display - only `in` is
+    case-insensitive.
+    """
+
+    def __init__(self, iterable=None):
+        super().__init__(iterable or [])
+        self._normalized = {self._norm(value) for value in self}
+
+    @staticmethod
+    def _norm(value):
+        return value.lower() if isinstance(value, str) else value
+
+    def add(self, value):
+        super().add(value)
+        self._normalized.add(self._norm(value))
+
+    def update(self, *others):
+        for other in others:
+            for value in other:
+                self.add(value)
+
+    def __contains__(self, value):
+        return self._norm(value) in self._normalized
+
+
 def get_gpu_type_from_aggregate(aggregate_name):
     """Extract GPU type from aggregate name like 'RTX-A6000-n3-runpod' -> 'RTX-A6000'"""
     if not aggregate_name:

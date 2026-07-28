@@ -7,7 +7,7 @@ import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from .openstack_operations import get_openstack_connection
 from .netbox_utils import build_netbox_headers, get_cache_key_suffix
-from .utility_functions import is_spot_flavor
+from .utility_functions import is_spot_flavor, CaseInsensitiveDict, CaseInsensitiveSet
 
 # Global cache for parallel agent results
 _parallel_cache = {}
@@ -772,13 +772,21 @@ def organize_by_netbox_devices(results):
     gpu_info = results.get('gpu_info', {})
     compute_services = results.get('compute_services', {})
     
-    host_to_aggregate = aggregate_data.get('host_to_aggregate', {})
+    raw_host_to_aggregate = aggregate_data.get('host_to_aggregate', {})
     aggregate_to_hosts = aggregate_data.get('aggregate_to_hosts', {})
-    
+
+    # Every OpenStack-derived map is keyed by the hostname OpenStack reports, but is
+    # looked up with the NetBox device name. Those don't always agree on case, and a
+    # plain dict miss makes the host read as "not in any aggregate" with 0 VMs and
+    # 0 GPUs. Match case-insensitively - hostname case carries no meaning here.
+    host_to_aggregate = CaseInsensitiveDict(raw_host_to_aggregate)
+    vm_counts = CaseInsensitiveDict(vm_counts)
+    gpu_info = CaseInsensitiveDict(gpu_info)
+
     # Identify tempest and disabled hosts
-    tempest_hosts = set()
-    disabled_hosts = set(compute_services.get('disabled_hosts', []))
-    
+    tempest_hosts = CaseInsensitiveSet()
+    disabled_hosts = CaseInsensitiveSet(compute_services.get('disabled_hosts', []))
+
     for agg_name, hosts in aggregate_to_hosts.items():
         if 'tempest' in agg_name.lower():
             # Ensure hosts is iterable before updating
@@ -786,7 +794,19 @@ def organize_by_netbox_devices(results):
                 tempest_hosts.update(hosts)
             else:
                 print(f"⚠️ organize_by_netbox_devices: {agg_name} hosts is {type(hosts)}, expected iterable")
-    
+
+    # Surface which hosts only matched once case was ignored - these were previously
+    # dropped into Out of Stock as "not allocated to any OpenStack aggregate"
+    casing_mismatches = [
+        h for h in all_netbox_devices
+        if h not in raw_host_to_aggregate and h in host_to_aggregate
+    ]
+    if casing_mismatches:
+        shown = ', '.join(sorted(casing_mismatches)[:10])
+        suffix = f" (+{len(casing_mismatches) - 10} more)" if len(casing_mismatches) > 10 else ""
+        print(f"⚠️ {len(casing_mismatches)} host(s) matched OpenStack only after ignoring hostname case: {shown}{suffix}")
+
+
     print(f"🔍 Processing {len(all_netbox_devices)} NetBox devices with NetBox-first approach...")
     
     # Initialize columns structure
@@ -984,6 +1004,13 @@ def enrich_device_with_openstack_data(device, vm_counts, gpu_info, host_to_aggre
     aggregate_name = host_to_aggregate.get(hostname)
     enriched['openstack_aggregate'] = aggregate_name
     enriched['aggregate'] = aggregate_name  # Ensure both field names are available
+
+    # Record the hostname as OpenStack spells it. Matching is case-insensitive, but
+    # anything issuing OpenStack commands should use OpenStack's own casing.
+    if hasattr(host_to_aggregate, 'original_key'):
+        enriched['openstack_hostname'] = host_to_aggregate.original_key(hostname, hostname)
+    else:
+        enriched['openstack_hostname'] = hostname
 
     # Recalculate has_vms based on actual vm_count after enrichment
     vm_count = enriched.get('vm_count', 0)
