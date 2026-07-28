@@ -585,8 +585,6 @@ class RackView {
         const gpuUsed = device.gpu_used || 0;
         const gpuCapacity = device.gpu_capacity || 8;
         const gpuUsageRatio = device.gpu_usage_ratio || `${gpuUsed}/${gpuCapacity}`;
-        const isInUse = gpuUsed > 0;
-        const usagePercent = gpuCapacity > 0 ? (gpuUsed / gpuCapacity) : 0;
         const vmCount = device.vm_count || 0;
         const vmGpuBreakdown = device.vm_gpu_breakdown || [];
         const vmSpotBreakdown = device.vm_spot_breakdown || [];
@@ -639,6 +637,9 @@ class RackView {
         const ondemandVmCount = device.ondemand_vm_count || 0;
         const spotReady = device.spot_ready !== undefined ? device.spot_ready : ondemandVmCount === 0;
 
+        // Card colour encodes owner and pool only - never GPU usage. Usage is already
+        // shown by the segmented bar and the n/8 ratio on every card, so colouring by
+        // it as well just multiplied the palette without adding information.
         if (isContractAggregate) {
             // Contract aggregate: Pink for NexGen, Grey for Investor
             if (isNexgen) {
@@ -646,34 +647,17 @@ class RackView {
             } else {
                 deviceClass += ' device-investor-contract';
             }
+        } else if (device.status === 'decommissioning') {
+            // For Sale - animated stripes, regardless of pool or usage
+            deviceClass += ' device-nexgen decommissioning';
         } else if (isSpotAggregate) {
-            // Spot aggregate: Blue for Investor, Green for NexGen
-            if (!isNexgen) {
-                deviceClass += ' device-investor-spot';
-            } else {
-                deviceClass += ' device-nexgen-spot';
-            }
+            // Spot aggregate: Green for NexGen, Blue for Investor
+            deviceClass += isNexgen ? ' device-nexgen-spot' : ' device-investor-spot';
             // Solid = ready to sell, hatched = still draining on-demand VMs
             deviceClass += spotReady ? ' spot-ready' : ' spot-waiting';
-        } else if (!isNexgen) {
-            // Investor devices (non-spot): blue if empty (0/8), grey if in use
-            if (gpuUsed === 0) {
-                deviceClass += ' device-investor-empty';
-            } else {
-                deviceClass += ' device-investor';
-            }
         } else {
-            // NexGen devices (non-spot): gradient from yellow (low usage) to red (full usage)
-            if (device.status === 'decommissioning') {
-                deviceClass += ' device-nexgen decommissioning';
-            } else if (isInUse) {
-                // Calculate color gradient: yellow (low) -> orange (mid) -> red (full)
-                const bgColor = this.getUsageColor(usagePercent);
-                inlineStyle += ` background: ${bgColor};`;
-                deviceClass += ' device-in-use-gradient';
-            } else {
-                deviceClass += ' device-nexgen';
-            }
+            // Everything else (on-demand, runpod): plain owner colour
+            deviceClass += isNexgen ? ' device-nexgen' : ' device-investor';
         }
 
         // Check visibility based on filters
@@ -735,28 +719,6 @@ class RackView {
                 </div>
             </div>
         `;
-    }
-
-    /**
-     * Calculate color based on GPU usage percentage (yellow -> orange -> red)
-     */
-    getUsageColor(percent) {
-        // percent: 0 = not used (shouldn't reach here), 0.125 = 1/8, 1 = 8/8
-        // Color: light yellow (#fff3cd) -> orange (#fd7e14) -> red (#dc3545)
-
-        if (percent <= 0.25) {
-            // Light yellow to yellow
-            return `linear-gradient(135deg, #fff3cd, #ffc107)`;
-        } else if (percent <= 0.5) {
-            // Yellow to orange
-            return `linear-gradient(135deg, #ffc107, #fd7e14)`;
-        } else if (percent <= 0.75) {
-            // Orange to dark orange
-            return `linear-gradient(135deg, #fd7e14, #e55100)`;
-        } else {
-            // Dark orange to red
-            return `linear-gradient(135deg, #e55100, #dc3545)`;
-        }
     }
 
     /**

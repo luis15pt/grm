@@ -3588,33 +3588,19 @@ body {
     100% { background-position: 22.6px 0; }
 }
 
-/* Investor Devices - Grey (in use) */
+/* Investor Devices - Blue (owner colour, regardless of usage) */
 .device-investor {
-    background: linear-gradient(135deg, #636e72, #4a5459);
-    opacity: 0.7;
-    border-color: #6c757d;
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    border-color: #5dade2;
 }
 
 .device-investor:hover {
-    opacity: 0.9;
-    background: linear-gradient(135deg, #6c757d, #636e72);
-}
-
-/* Investor Devices - Blue (empty/available) */
-.device-investor-empty {
-    background: linear-gradient(135deg, #3498db, #2980b9);
-    border-color: #5dade2;
-    opacity: 0.85;
-}
-
-.device-investor-empty:hover {
-    opacity: 1;
     background: linear-gradient(135deg, #5dade2, #3498db);
 }
 
-.device-investor-empty .device-name,
-.device-investor-empty .device-owner-badge,
-.device-investor-empty .device-gpu-usage {
+.device-investor .device-name,
+.device-investor .device-owner-badge,
+.device-investor .device-gpu-usage {
     color: white;
 }
 
@@ -3735,23 +3721,6 @@ body {
 .device-buffs .fa-file-contract {
     font-size: 12px;
     color: rgba(255, 255, 255, 0.9);
-}
-
-/* In-Use NexGen Devices with gradient (color set inline via JS) */
-.device-in-use-gradient {
-    border-color: #e74c3c;
-    opacity: 1;
-}
-
-.device-in-use-gradient:hover {
-    filter: brightness(1.1);
-}
-
-.device-in-use-gradient .device-name,
-.device-in-use-gradient .device-owner-badge,
-.device-in-use-gradient .device-gpu-usage {
-    color: #2c3e50;
-    text-shadow: 0 0 2px rgba(255,255,255,0.5);
 }
 
 /* Device card layout - show info without hover */
