@@ -3666,8 +3666,10 @@ body {
     left: 0;
     pointer-events: none;
     border-radius: inherit;
+    /* 135deg, not 45deg - keeps this distinct from the .decommissioning
+       barber pole, which stripes the other way in similar colours */
     background: repeating-linear-gradient(
-        45deg,
+        135deg,
         rgba(0, 0, 0, 0) 0px,
         rgba(0, 0, 0, 0) 6px,
         rgba(225, 112, 85, 0.55) 6px,
