@@ -227,7 +227,7 @@ class RackView {
             let gpuBreakdownHtml = '';
             Object.entries(byGpu).forEach(([gpu, counts]) => {
                 const decomCount = counts.decommissioning || 0;
-                const decomText = decomCount > 0 ? ` <span class="text-warning">(${decomCount} for sale)</span>` : '';
+                const decomText = decomCount > 0 ? ` <span class="text-decommissioning">(${decomCount} decommissioning)</span>` : '';
                 gpuBreakdownHtml += `<span class="badge bg-secondary me-1">${gpu}: ${counts.nexgen || 0}${decomText}</span>`;
             });
 
@@ -327,7 +327,7 @@ class RackView {
         let gpuBreakdownHtml = '';
         Object.entries(byGpu).forEach(([gpu, counts]) => {
             const decomCount = counts.decommissioning || 0;
-            const decomText = decomCount > 0 ? ` <span class="text-warning">(${decomCount} for sale)</span>` : '';
+            const decomText = decomCount > 0 ? ` <span class="text-decommissioning">(${decomCount} decommissioning)</span>` : '';
             gpuBreakdownHtml += `
                 <span class="badge bg-secondary me-2">
                     ${gpu}: ${counts.nexgen || 0}${decomText}
@@ -368,7 +368,7 @@ class RackView {
                         </div>
                         <hr class="my-2">
                         <div class="d-flex justify-content-between">
-                            <span class="text-danger"><i class="fas fa-tag"></i> For Sale:</span>
+                            <span class="text-decommissioning"><i class="fas fa-tag"></i> Decommissioning:</span>
                             <strong>${totals.for_sale || 0}</strong>
                         </div>
                     </div>
@@ -648,8 +648,9 @@ class RackView {
                 deviceClass += ' device-investor-contract';
             }
         } else if (device.status === 'decommissioning') {
-            // For Sale - animated stripes, regardless of pool or usage
-            deviceClass += ' device-nexgen decommissioning';
+            // NetBox decommissioning - animated purple stripes, regardless of owner,
+            // pool or usage. This is the machine being retired, not spot capacity.
+            deviceClass += ' device-decommissioning';
         } else if (isSpotAggregate) {
             // Spot aggregate: Green for NexGen, Blue for Investor
             deviceClass += isNexgen ? ' device-nexgen-spot' : ' device-investor-spot';
@@ -783,7 +784,7 @@ class RackView {
             : '<span class="badge bg-secondary">Investor</span>';
 
         const statusBadge = status === 'decommissioning'
-            ? '<span class="badge bg-warning">For Sale</span>'
+            ? '<span class="badge badge-decommissioning">Decommissioning</span>'
             : '<span class="badge bg-success">Active</span>';
 
         const nvlinkBadge = nvlinks

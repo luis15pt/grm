@@ -3571,21 +3571,41 @@ body {
     background: linear-gradient(135deg, #00d9a5, #00b894);
 }
 
-/* NexGen Decommissioning (For Sale) - Green with Orange Stripes */
-.device-nexgen.decommissioning {
+/* NetBox Decommissioning - Purple with animated stripes.
+   Deliberately not green/orange: green is the NexGen owner colour and orange marks
+   on-demand, which made this near-indistinguishable from a draining spot host.
+   Owner-agnostic - a decommissioning host reads the same whoever owns it. */
+.device-decommissioning {
     background: repeating-linear-gradient(
         45deg,
-        #00b894,
-        #00b894 8px,
-        #e17055 8px,
-        #e17055 16px
+        #a55eea,
+        #a55eea 8px,
+        #8854d0 8px,
+        #8854d0 16px
     );
-    animation: forSaleStripes 2s linear infinite;
+    border-color: #c39bf5;
+    animation: decommissioningStripes 2s linear infinite;
 }
 
-@keyframes forSaleStripes {
+.device-decommissioning .device-name,
+.device-decommissioning .device-owner-badge,
+.device-decommissioning .device-gpu-usage {
+    color: white;
+}
+
+@keyframes decommissioningStripes {
     0% { background-position: 0 0; }
     100% { background-position: 22.6px 0; }
+}
+
+/* Decommissioning accents - tooltip badge and summary label */
+.badge-decommissioning {
+    background-color: #8854d0;
+    color: #fff;
+}
+
+.text-decommissioning {
+    color: #8854d0;
 }
 
 /* Investor Devices - Blue (owner colour, regardless of usage) */
@@ -3638,7 +3658,8 @@ body {
 }
 
 /* Spot Readiness - solid owner colour = ready to sell, hatched = on-demand VMs
-   still draining off. Same barber-pole idiom as .decommissioning above. */
+   still draining off. Orange matches the N OD badge and the on-demand GPU
+   segments, so the same colour means on-demand everywhere. */
 .rack-device.spot-ready {
     border-color: rgba(255, 255, 255, 0.55);
 }
@@ -3652,8 +3673,8 @@ body {
     left: 0;
     pointer-events: none;
     border-radius: inherit;
-    /* 135deg, not 45deg - keeps this distinct from the .decommissioning
-       barber pole, which stripes the other way in similar colours */
+    /* 135deg, opposite to .device-decommissioning's 45deg - a second cue on top
+       of the colour difference, since both are animated-looking stripe patterns */
     background: repeating-linear-gradient(
         135deg,
         rgba(0, 0, 0, 0) 0px,
